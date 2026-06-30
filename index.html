@@ -1,0 +1,2369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CT Worklist</title>
+<style>
+  :root {
+    --mono: 'SF Mono', 'Roboto Mono', Consolas, monospace;
+    --blue: #0B5FA5; --blue-bg: #E5F1FB;
+    --red: #B3261E; --red-bg: #FCE8E6;
+    --amber: #9A5B00; --amber-bg: #FFF3DC;
+    --green: #1B5E3F; --green-bg: #E5F3EC;
+    --grey: #5A5F6B; --grey-bg: #EEF0F3;
+    --ink: #1A1D22; --sub: #6B7080; --faint: #8A8F99; --line: #E3E5E9; --line2: #D9DBE1;
+    --bg: #F7F8FA;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--ink); font-size: 14px;
+  }
+  button, input, select, textarea { font-family: inherit; font-size: inherit; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--blue); outline-offset: 1px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  .hidden { display: none !important; }
+
+  .local-notice {
+    background: var(--amber-bg); color: var(--amber); font-size: 12px; font-weight: 600;
+    text-align: center; padding: 8px 16px;
+  }
+
+  /* ---- Login ---- */
+  .login-wrap {
+    display: flex; align-items: center; justify-content: center; min-height: 100vh;
+    background: var(--bg); padding: 16px;
+  }
+  .login-card {
+    background: #fff; border-radius: 14px; padding: 28px 26px; width: 100%; max-width: 380px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.10); border: 1px solid var(--line);
+  }
+  .logo-mark {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--blue); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.5px; font-family: var(--mono);
+  }
+  .login-title { font-weight: 700; font-size: 17px; margin: 14px 0 4px; }
+  .login-sub { font-size: 12.5px; color: var(--sub); margin-bottom: 18px; }
+  .login-footnote { font-size: 11px; color: var(--faint); margin-top: 14px; line-height: 1.5; }
+
+  .role-toggle { display: flex; gap: 6px; margin-bottom: 14px; }
+  .role-option {
+    flex: 1; padding: 9px 0; border-radius: 7px; border: 1px solid var(--line2); background: #fff;
+    font-weight: 700; font-size: 12.5px; cursor: pointer; color: var(--sub);
+  }
+  .role-option.active { background: var(--blue-bg); color: var(--blue); border-color: var(--blue); }
+
+  /* ---- Form fields (shared) ---- */
+  .field { margin-bottom: 14px; display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; font-weight: 700; color: #3A3F4B; }
+  .field-hint { font-size: 11px; color: var(--faint); }
+  .date-load-summary {
+    background: var(--blue-bg); border: 1px solid #C9E0F3; border-radius: 8px; padding: 10px 12px;
+    font-size: 12.5px; color: #0B5FA5;
+  }
+  .date-load-summary .total { font-weight: 700; margin-bottom: 4px; }
+  .date-load-summary .breakdown { color: #3A3F4B; font-size: 12px; line-height: 1.6; }
+  .date-load-summary .breakdown span.slot { font-weight: 600; }
+  .checkbox-field {
+    display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; color: #3A3F4B;
+    cursor: pointer; padding: 4px 0;
+  }
+  .checkbox-field input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--blue); cursor: pointer; }
+  .input, select.input, textarea.input {
+    padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line2); font-size: 13.5px;
+    background: #fff; font-family: inherit; width: 100%;
+  }
+  textarea.input { min-height: 64px; resize: vertical; }
+  .error-text { color: var(--red); font-size: 12.5px; margin-bottom: 10px; font-weight: 600; }
+  .btn-primary-full {
+    border: none; background: var(--blue); border-radius: 8px; padding: 11px 18px; font-size: 13.5px;
+    font-weight: 700; color: #fff; cursor: pointer; width: 100%; margin-top: 4px;
+  }
+
+  /* ---- Header ---- */
+  header {
+    display: flex; align-items: center; gap: 16px; padding: 14px 20px; background: #fff;
+    border-bottom: 1px solid var(--line); flex-wrap: wrap;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  .title { font-weight: 700; font-size: 16px; line-height: 1.2; }
+  .subtitle { font-size: 12px; color: var(--sub); }
+  .count-pills { display: flex; gap: 8px; flex: 1 1 auto; flex-wrap: wrap; }
+  .pill { display: flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill .val { font-size: 15px; font-family: var(--mono); }
+  .pill .lbl { font-size: 11px; opacity: 0.85; }
+  .user-block { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  .user-name { font-size: 12.5px; font-weight: 600; color: #3A3F4B; }
+  .role-tag {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+    padding: 3px 7px; border-radius: 5px; background: var(--grey-bg); color: var(--grey); margin-left: 6px;
+  }
+  .btn-ghost {
+    border: 1px solid var(--line2); background: #fff; border-radius: 7px; padding: 6px 11px;
+    font-size: 11.5px; font-weight: 600; color: var(--sub); cursor: pointer;
+  }
+  .btn-new {
+    background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 10px 16px;
+    font-weight: 600; font-size: 13px; cursor: pointer; flex: 0 0 auto;
+  }
+
+  /* ---- Toolbar ---- */
+  .day-nav {
+    display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: #fff;
+    border-bottom: 1px solid var(--line); flex-wrap: wrap;
+  }
+  .day-nav-btn {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line2); background: #fff;
+    font-size: 18px; font-weight: 700; color: var(--grey); cursor: pointer; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .day-nav-btn:hover { background: var(--bg); }
+  .day-nav-today {
+    padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line2); background: #fff;
+    font-size: 12.5px; font-weight: 700; color: var(--blue); cursor: pointer; flex: 0 0 auto;
+  }
+  .day-nav-label { font-size: 14px; font-weight: 700; color: var(--ink); flex: 1 1 auto; min-width: 140px; }
+  .day-nav-date {
+    padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line2); font-size: 12.5px;
+    background: #fff; flex: 0 0 auto;
+  }
+
+  .toolbar {
+    display: flex; gap: 10px; padding: 12px 20px; flex-wrap: wrap; align-items: center;
+    background: #fff; border-bottom: 1px solid var(--line);
+  }
+  #searchInput { flex: 1 1 280px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line2); font-size: 13px; background: var(--bg); }
+  .filter-group { display: flex; gap: 6px; }
+  .chip {
+    padding: 8px 12px; border-radius: 7px; border: 1px solid var(--line2); background: #fff;
+    font-size: 12px; font-weight: 600; color: var(--grey); cursor: pointer;
+  }
+  .chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  #statusSelect { padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line2); font-size: 12px; font-weight: 600; color: #3A3F4B; background: #fff; }
+
+  /* ---- List ---- */
+  .list-wrap { padding: 16px 20px 60px; max-width: 1280px; margin: 0 auto; }
+
+  .board-columns { display: flex; gap: 18px; align-items: flex-start; }
+  .board-column { flex: 1 1 0; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .board-column-head {
+    padding: 12px 16px; font-size: 13px; font-weight: 700; letter-spacing: 0.2px;
+    border-bottom: 1px solid var(--line);
+  }
+  .board-column-head.outpatient { color: #1B5E3F; background: #E5F3EC; }
+  .board-column-head.er-inpatient { color: #9A3412; background: #FDECE3; }
+  .board-column-body { padding: 10px; }
+  .board-column .table-head { padding: 0 6px 8px; }
+  .board-column .empty-state { margin: 10px; }
+
+  @media (max-width: 980px) {
+    .board-columns { flex-direction: column; }
+  }
+  .table-head { display: flex; padding: 0 16px 8px; gap: 8px; }
+
+  .time-slot-section { margin-bottom: 20px; }
+  .time-slot-heading {
+    font-size: 12px; font-weight: 700; color: var(--faint); text-transform: uppercase;
+    letter-spacing: 0.4px; padding: 0 4px 10px;
+  }
+  .slot-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+  .slot-time { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .slot-orders { flex: 1 1 auto; min-width: 0; }
+  .th { font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.4px; }
+
+  .order-row { background: #fff; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+  .row-main { display: flex; align-items: center; gap: 8px; padding: 14px 16px; cursor: pointer; }
+
+  /* Desktop column widths, shared between header row and data rows */
+  .cell-priority { flex: 0 0 88px; }
+  .cell-file { flex: 0 0 130px; }
+  .cell-protocol { flex: 1 1 260px; }
+  .cell-dept { flex: 0 0 160px; }
+  .cell-status { flex: 0 0 150px; }
+  .cell-tech { flex: 0 0 130px; }
+  .cell-rad { flex: 0 0 150px; }
+  .cell-chevron { flex: 0 0 90px; text-align: right; }
+  .cell[data-label] { min-width: 0; } /* labels only show on mobile, see media query below */
+
+  /* ---- Card layout inside board columns: since each column is roughly half-page width
+     (or less), orders always render as labeled stacked cards here rather than wide rows,
+     regardless of overall screen size. ---- */
+  .board-column .table-head { display: none; } /* column headers don't apply to stacked cards */
+
+  .board-column .row-main {
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    padding: 12px 14px;
+    position: relative;
+  }
+
+  /* Priority badge and chevron sit as a small top strip; everything else stacks below */
+  .board-column .cell-priority { order: 1; flex: 0 0 auto; }
+  #outpatientList .cell-priority { display: none; } /* redundant — the column header already says "Outpatient" */
+  .board-column .cell-chevron { order: 2; flex: 0 0 auto; margin-left: auto; }
+  .board-column .cell-protocol { order: 3; flex: 1 1 100%; min-width: 100%; margin-top: 2px; }
+  .board-column .cell-file { order: 4; flex: 1 1 45%; }
+  .board-column .cell-dept { order: 5; flex: 1 1 45%; }
+  .board-column .cell-status { order: 6; flex: 1 1 45%; }
+  .board-column .cell-tech { order: 7; flex: 1 1 45%; }
+  .board-column .cell-rad { order: 8; flex: 1 1 100%; }
+
+  /* Show a small caption above the value so a stacked field is still identifiable */
+  .board-column .cell[data-label] { display: flex; flex-direction: column; gap: 1px; }
+  .board-column .cell[data-label]::before {
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--faint);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .board-column .cell-value { font-size: 13px; }
+
+  /* ---- Mobile-only tweaks: at narrow widths the action buttons and admin grids also
+     collapse to single column. ---- */
+  @media (max-width: 720px) {
+    .action-grid { grid-template-columns: 1fr; }
+    .admin-col-grid { grid-template-columns: 1fr; }
+  }
+  .badge { display: inline-block; padding: 4px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+  .protocol-text { font-weight: 600; font-size: 13.5px; }
+  .patient-name-text { font-size: 12.5px; color: #3A3F4B; margin-top: 1px; }
+
+  .protocol-text-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .protocoling-badge {
+    display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700;
+    color: #92400E; background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 999px;
+    padding: 2px 8px; white-space: nowrap; line-height: 1.5;
+  }
+  .protocoling-badge.protocoled { color: #1B5E3F; background: #E5F3EC; border-color: #A7D9BE; }
+  .protocoling-banner {
+    font-size: 12px; font-weight: 600; color: #92400E; background: #FFFBEB;
+    border-top: 1px solid #FCD34D; padding: 7px 16px;
+  }
+  .meta-text { font-size: 11.5px; color: var(--faint); margin-top: 2px; }
+  .chevron { color: #A7ABB3; font-size: 11px; }
+
+  .expand-panel { border-top: 1px solid #EEF0F3; padding: 14px 16px 16px; background: #FAFBFC; display: none; }
+  .order-row.expanded .expand-panel { display: block; }
+  .notes-block { font-size: 13px; color: #3A3F4B; background: #FFF9E8; border: 1px solid #F2E6B8; border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; }
+  .notes-label { font-weight: 700; color: var(--amber); }
+
+  /* ---- Timeline ---- */
+  .timeline { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .timeline-step { display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; }
+  .timeline-dot {
+    width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex: 0 0 auto;
+    background: var(--line2);
+  }
+  .timeline-step.done .timeline-dot { background: var(--green); }
+  .timeline-step.pending .timeline-label { color: var(--faint); }
+  .timeline-label { font-weight: 700; color: #3A3F4B; }
+  .timeline-detail { color: var(--sub); }
+
+  .action-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .btn-stage {
+    border: 1px solid var(--blue); background: var(--blue-bg); color: var(--blue); border-radius: 7px;
+    padding: 9px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  }
+  .btn-stage.green { border-color: var(--green); background: var(--green-bg); color: var(--green); }
+  .btn-stage.outline { border-color: var(--line2); background: #fff; color: #3A3F4B; }
+  .btn-stage:disabled { opacity: 0.45; cursor: not-allowed; }
+  .row-actions { display: flex; gap: 8px; }
+  .btn-small { border: 1px solid var(--line2); background: #fff; border-radius: 7px; padding: 7px 12px; font-size: 12px; font-weight: 600; color: #3A3F4B; cursor: pointer; }
+  .btn-small.danger { color: var(--red); }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--sub); }
+  .empty-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; color: #3A3F4B; }
+  .empty-body { font-size: 13px; }
+
+  /* ---- Modal ---- */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(20,22,26,0.45); display: flex; align-items: center;
+    justify-content: center; padding: 16px; z-index: 50;
+  }
+  .modal-card {
+    background: #fff; border-radius: 14px; width: 100%; max-width: 480px; max-height: 90vh;
+    overflow-y: auto; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 16px; margin-bottom: 18px; }
+  .modal-close { border: none; background: transparent; font-size: 16px; cursor: pointer; color: var(--faint); }
+  .priority-toggle { display: flex; gap: 6px; }
+  .priority-option {
+    flex: 1; padding: 9px 0; border-radius: 7px; border: 1px solid var(--line2); background: #fff;
+    font-weight: 700; font-size: 12.5px; cursor: pointer; color: var(--sub);
+  }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+  .btn-cancel { border: 1px solid var(--line2); background: #fff; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #3A3F4B; cursor: pointer; }
+  .btn-submit { border: none; background: var(--blue); border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #fff; cursor: pointer; }
+
+  /* ---- Toast ---- */
+  /* ---- Admin dashboard ---- */
+  .admin-tabs { display: flex; gap: 4px; padding: 0 20px; background: #fff; border-bottom: 1px solid var(--line); }
+  .admin-tab {
+    padding: 12px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600;
+    color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .admin-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .admin-content { padding: 20px; max-width: 1100px; margin: 0 auto; }
+  .admin-panel.hidden { display: none; }
+  .admin-col-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .admin-card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .admin-card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .admin-card-head h2 { font-size: 14px; margin: 0; }
+  .btn-small.primary { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); }
+  .staff-list { display: flex; flex-direction: column; gap: 8px; }
+  .staff-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: #FAFBFC;
+  }
+  .staff-row .name { font-weight: 600; font-size: 13px; }
+  .staff-row .row-btns { display: flex; gap: 6px; }
+  .staff-empty { font-size: 12.5px; color: var(--faint); padding: 8px 2px; }
+
+  .variant-card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; background: #fff;
+  }
+  .variant-card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .variant-card-head .vtitle { font-weight: 700; font-size: 13.5px; }
+  .variant-preview { display: flex; gap: 16px; font-size: 12px; color: #3A3F4B; }
+  .variant-preview .col { flex: 1; }
+  .variant-preview .col.ar { direction: rtl; text-align: right; }
+  .variant-preview ul { margin: 4px 0 0; padding-left: 16px; }
+  .variant-preview .col.ar ul { padding-left: 0; padding-right: 16px; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink);
+    color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25); z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="loginScreen" class="login-wrap">
+  <form id="loginForm" class="login-card">
+    <div class="logo-mark">CT</div>
+    <div class="login-title">CT Worklist — Sign in</div>
+    <div class="login-sub">Radiologists enter and accept requests. Techs move cases through the workflow.</div>
+
+    <div class="role-toggle" id="roleToggle">
+      <button type="button" class="role-option active" data-role="RADIOLOGIST">Radiologist</button>
+      <button type="button" class="role-option" data-role="TECH">Technologist</button>
+      <button type="button" class="role-option" data-role="ADMIN">Admin</button>
+    </div>
+
+    <div class="field">
+      <label for="loginName">Name</label>
+      <select id="loginName" class="input"></select>
+    </div>
+
+    <div class="field">
+      <label for="loginPassword">Password</label>
+      <input id="loginPassword" type="password" class="input" autocomplete="current-password" />
+    </div>
+
+    <div id="loginError" class="error-text hidden"></div>
+
+    <button type="submit" class="btn-primary-full">Sign in</button>
+
+    <div class="login-footnote">
+      The worklist is shared with all staff and updates live. Your sign-in is remembered only on
+      this device.
+    </div>
+  </form>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div id="app" class="hidden">
+  <div id="connectionWarning" class="local-notice hidden"></div>
+
+  <header>
+    <div class="header-left">
+      <div class="logo-mark">CT</div>
+      <div>
+        <div class="title">CT Worklist</div>
+        <div class="subtitle">Inpatient · ER · Outpatient</div>
+      </div>
+    </div>
+    <div id="countPills" class="count-pills"></div>
+    <div class="user-block">
+      <span id="userName" class="user-name"></span><span id="userRoleTag" class="role-tag"></span>
+      <button id="logoutBtn" class="btn-ghost">Log out</button>
+    </div>
+    <button id="newOrderBtn" class="btn-new hidden">+ New order</button>
+  </header>
+
+  <div class="day-nav">
+    <button type="button" id="prevDayBtn" class="day-nav-btn" aria-label="Previous day">‹</button>
+    <button type="button" id="todayBtn" class="day-nav-today">Today</button>
+    <div class="day-nav-label" id="dayNavLabel">Today</div>
+    <input type="date" id="dayDatePicker" class="day-nav-date" />
+    <button type="button" id="nextDayBtn" class="day-nav-btn" aria-label="Next day">›</button>
+  </div>
+
+  <div class="toolbar">
+    <input id="searchInput" placeholder="Search patient name, file number, protocol, department, staff…" />
+    <div class="filter-group" id="priorityFilterGroup">
+      <button class="chip active" data-priority="ALL">All types</button>
+      <button class="chip" data-priority="ER">ER</button>
+      <button class="chip" data-priority="INPATIENT">Inpatient</button>
+      <button class="chip" data-priority="OUTPATIENT">Outpatient</button>
+    </div>
+    <select id="statusSelect">
+      <option value="ACTIVE">Active only</option>
+      <option value="ALL">All statuses</option>
+      <option value="SCHEDULED">Scheduled</option>
+      <option value="ASKED_TO_SEND">Asked to send patient / Arrived</option>
+      <option value="DONE">Done</option>
+    </select>
+  </div>
+
+  <main class="list-wrap">
+    <div class="board-columns">
+      <section class="board-column">
+        <div class="board-column-head outpatient">Outpatient</div>
+        <div id="outpatientList" class="board-column-body"></div>
+        <div id="outpatientEmpty" class="empty-state hidden">
+          <div class="empty-title">No outpatient appointments</div>
+          <div class="empty-body">Nothing scheduled for this view.</div>
+        </div>
+      </section>
+
+      <section class="board-column">
+        <div class="board-column-head er-inpatient">ER / Inpatient</div>
+        <div id="erInpatientTableHead" class="table-head hidden">
+          <div class="th cell-priority">Priority</div>
+          <div class="th cell-file">File #</div>
+          <div class="th cell-protocol">Study / protocol</div>
+          <div class="th cell-dept">Referring dept.</div>
+          <div class="th cell-status">Status</div>
+          <div class="th cell-tech">Tech</div>
+          <div class="th cell-rad">Radiologist</div>
+          <div class="th cell-chevron"></div>
+        </div>
+        <div id="erInpatientList" class="board-column-body"></div>
+        <div id="erInpatientEmpty" class="empty-state hidden">
+          <div class="empty-title">No ER/Inpatient orders</div>
+          <div class="empty-body">Nothing scheduled for this view.</div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ============ ORDER FORM MODAL (radiologist only) ============ -->
+<div id="modalOverlay" class="modal-overlay hidden">
+  <form id="orderForm" class="modal-card">
+    <div class="modal-header">
+      <span id="modalTitle">New CT order</span>
+      <button type="button" id="modalClose" class="modal-close">✕</button>
+    </div>
+
+    <div class="field">
+      <label for="fileNumber">Patient file number</label>
+      <input id="fileNumber" class="input" placeholder="e.g. 0042817" />
+    </div>
+
+    <div class="field">
+      <label for="patientName">Patient name (optional)</label>
+      <input id="patientName" class="input" placeholder="e.g. Mohammed Al-Saud" />
+    </div>
+
+    <div class="field" id="referralConfirmedField">
+      <label class="checkbox-field">
+        <input type="checkbox" id="referralConfirmed" />
+        <span>I confirmed the referring doctor's request exists</span>
+      </label>
+    </div>
+
+    <div class="field hidden" id="needsProtocolingField">
+      <label class="checkbox-field">
+        <input type="checkbox" id="needsProtocoling" />
+        <span>Needs protocoling — flag for radiologist review on appointment day</span>
+      </label>
+    </div>
+
+    <div class="field">
+      <label>Patient category</label>
+      <div class="priority-toggle" id="priorityToggle">
+        <button type="button" class="priority-option" data-priority="ER">ER</button>
+        <button type="button" class="priority-option" data-priority="INPATIENT">Inpatient</button>
+        <button type="button" class="priority-option" data-priority="OUTPATIENT">Outpatient</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="protocolSelect">Study / protocol</label>
+      <select id="protocolSelect" class="input"></select>
+    </div>
+
+    <div class="field hidden" id="customProtocolField">
+      <label for="customProtocol">Custom protocol name</label>
+      <input id="customProtocol" class="input" placeholder="Type protocol" />
+    </div>
+
+    <div class="field hidden" id="appointmentField">
+      <label for="appointmentDate">Appointment date</label>
+      <input id="appointmentDate" type="date" class="input" />
+      <span class="field-hint">Outpatient studies can be booked up to 1 month ahead.</span>
+    </div>
+
+    <div class="field hidden" id="appointmentTimeField">
+      <label for="appointmentTime">Appointment time</label>
+      <input id="appointmentTime" type="time" class="input" step="600" />
+      <span class="field-hint">Time slots are in 10-minute increments.</span>
+    </div>
+
+    <div class="field hidden" id="dateLoadSummary"></div>
+
+    <div class="field">
+      <label for="referringDept">Referring department</label>
+      <select id="referringDept" class="input"></select>
+    </div>
+
+    <div class="field">
+      <label for="notesField">Clinical notes (optional)</label>
+      <textarea id="notesField" class="input" placeholder="Indication, allergy flags, renal function, etc."></textarea>
+    </div>
+
+    <div id="formError" class="error-text hidden"></div>
+
+    <div class="modal-actions">
+      <button type="button" id="cancelBtn" class="btn-cancel">Cancel</button>
+      <button type="submit" id="submitBtn" class="btn-submit">Add to worklist</button>
+    </div>
+  </form>
+</div>
+
+<!-- ============ ADMIN DASHBOARD ============ -->
+<div id="adminApp" class="hidden">
+  <header>
+    <div class="header-left">
+      <div class="logo-mark">CT</div>
+      <div>
+        <div class="title">CT Worklist — Admin</div>
+        <div class="subtitle">Manage staff accounts and patient instruction sheets</div>
+      </div>
+    </div>
+    <div class="user-block">
+      <span id="adminUserName" class="user-name"></span><span class="role-tag">Admin</span>
+      <button id="adminLogoutBtn" class="btn-ghost">Log out</button>
+    </div>
+  </header>
+
+  <div class="admin-tabs" id="adminTabs">
+    <button class="admin-tab active" data-tab="staff">Staff accounts</button>
+    <button class="admin-tab" data-tab="instructions">Instruction sheets</button>
+    <button class="admin-tab" data-tab="branding">Branding</button>
+    <button class="admin-tab" data-tab="deleted">Deleted orders</button>
+  </div>
+
+  <main class="admin-content">
+
+    <!-- ---- STAFF TAB ---- -->
+    <section id="adminTabStaff" class="admin-panel">
+      <div class="admin-col-grid">
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <h2>Radiologists</h2>
+            <button type="button" class="btn-small primary" data-action="add-staff" data-role="RADIOLOGIST">+ Add radiologist</button>
+          </div>
+          <div id="radiologistList" class="staff-list"></div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <h2>Technologists</h2>
+            <button type="button" class="btn-small primary" data-action="add-staff" data-role="TECH">+ Add technologist</button>
+          </div>
+          <div id="techList" class="staff-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- INSTRUCTIONS TAB ---- -->
+    <section id="adminTabInstructions" class="admin-panel hidden">
+      <div class="admin-card" style="max-width:640px;">
+        <div class="admin-card-head"><h2>Patient instructions (applies to every outpatient study)</h2></div>
+        <p class="field-hint" style="margin-bottom:12px;">
+          This single set of instructions prints on every outpatient patient sheet, regardless of
+          which study they're having. There's no need to set up instructions per protocol.
+        </p>
+
+        <div class="field">
+          <label for="sharedEnInput">English instructions — one line per instruction</label>
+          <textarea id="sharedEnInput" class="input" style="min-height:140px;" placeholder="Arrive 15 minutes before your appointment.&#10;Bring your ID."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="sharedArInput">Arabic instructions — one line per instruction</label>
+          <textarea id="sharedArInput" class="input" dir="rtl" style="min-height:140px;text-align:right;" placeholder="يرجى الحضور قبل 15 دقيقة من الموعد."></textarea>
+          <span class="field-hint">Each line should be the Arabic translation of the matching English line above, in the same order.</span>
+        </div>
+
+        <div id="sharedInstrError" class="error-text hidden"></div>
+
+        <div class="modal-actions" style="justify-content:flex-start;">
+          <button type="button" id="saveSharedInstrBtn" class="btn-submit">Save instructions</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- BRANDING TAB ---- -->
+    <section id="adminTabBranding" class="admin-panel hidden">
+      <div class="admin-card" style="max-width:480px;">
+        <div class="admin-card-head"><h2>Hospital / department logo</h2></div>
+        <p class="field-hint" style="margin-bottom:12px;">
+          This logo appears on both top corners of the printed outpatient instruction sheet.
+          Upload an image up to 2MB (PNG or JPG, ideally with a transparent or white background
+          for the cleanest print).
+        </p>
+        <div id="logoPreviewWrap" style="margin-bottom:12px;"></div>
+        <input type="file" id="logoFileInput" accept="image/*" class="input" style="margin-bottom:10px;" />
+        <div class="modal-actions" style="justify-content:flex-start;">
+          <button type="button" id="logoRemoveBtn" class="btn-cancel">Remove logo</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- DELETED ORDERS TAB ---- -->
+    <section id="adminTabDeleted" class="admin-panel hidden">
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <h2>Soft-deleted outpatient orders</h2>
+          <span class="field-hint" style="font-size:12px;">Orders are permanently removed 7 days after their appointment date.</span>
+        </div>
+        <div id="deletedOrdersList">
+          <div class="staff-empty">No deleted orders at the moment.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============ STAFF EDIT MODAL ============ -->
+<div id="staffModalOverlay" class="modal-overlay hidden">
+  <form id="staffForm" class="modal-card">
+    <div class="modal-header">
+      <span id="staffModalTitle">Add radiologist</span>
+      <button type="button" id="staffModalClose" class="modal-close">✕</button>
+    </div>
+
+    <div class="field">
+      <label for="staffNameInput">Full name</label>
+      <input id="staffNameInput" class="input" placeholder="e.g. Dr. Mona Al-Rashid" />
+    </div>
+
+    <div class="field">
+      <label for="staffPasswordInput">Password</label>
+      <input id="staffPasswordInput" class="input" placeholder="Password for this account" />
+    </div>
+
+    <div id="staffFormError" class="error-text hidden"></div>
+
+    <div class="modal-actions">
+      <button type="button" id="staffCancelBtn" class="btn-cancel">Cancel</button>
+      <button type="submit" class="btn-submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- ============ PROTOCOL SUBMISSION MODAL ============ -->
+<div id="protocolModalOverlay" class="modal-overlay hidden">
+  <form id="protocolForm" class="modal-card">
+    <div class="modal-header">
+      <span>Write protocol</span>
+      <button type="button" id="protocolModalClose" class="modal-close">✕</button>
+    </div>
+
+    <div id="protocolModalContext" class="field-hint" style="margin-bottom:10px;"></div>
+
+    <div class="field">
+      <label for="protocolTextInput">Protocol</label>
+      <textarea id="protocolTextInput" class="input" style="min-height:140px;" placeholder="e.g. Non-contrast CT abdomen/pelvis, standard technique. Add delayed phase if renal stones suspected."></textarea>
+    </div>
+
+    <div id="protocolFormError" class="error-text hidden"></div>
+
+    <div class="modal-actions">
+      <button type="button" id="protocolCancelBtn" class="btn-cancel">Cancel</button>
+      <button type="submit" class="btn-submit">Submit protocol</button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Constants ----------
+
+  var PRIORITY = {
+    ER: { label: "ER", color: "#B3261E", bg: "#FCE8E6" },
+    INPATIENT: { label: "Inpatient", color: "#9A5B00", bg: "#FFF3DC" },
+    OUTPATIENT: { label: "Outpatient", color: "#1B5E3F", bg: "#E5F3EC" }
+  };
+
+  var STATUS = {
+    SCHEDULED: { label: "Scheduled", color: "#5A5F6B", bg: "#EEF0F3" },
+    ASKED_TO_SEND: { label: "Asked to send patient", color: "#0B5FA5", bg: "#E5F1FB" },
+    DONE: { label: "Done", color: "#1B5E3F", bg: "#E5F3EC" }
+  };
+
+  // Outpatient uses "Arrived" instead of "Asked to send patient" for the same ASKED_TO_SEND
+  // status, since outpatients walk in themselves rather than being sent for from a ward.
+  // The underlying status key stays ASKED_TO_SEND either way — only the displayed label differs.
+  function statusLabelFor(status, priority) {
+    if (status === "ASKED_TO_SEND" && priority === "OUTPATIENT") return "Arrived";
+    return STATUS[status].label;
+  }
+
+  var PROTOCOLS = [
+    "CT Head — Non-contrast", "CT Head — Contrast", "CT Head — Stroke protocol (CTA + perfusion)",
+    "CT Brain — Trauma", "CT Sinuses", "CT Facial bones", "CT Orbits", "CT Temporal bones",
+    "CT Neck — Soft tissue with contrast", "CT Chest — Non-contrast", "CT Chest — Contrast",
+    "CT Chest — HRCT", "CT Chest — PE protocol (CTPA)", "CT Chest/Abdomen/Pelvis — Contrast",
+    "CT Abdomen/Pelvis — Non-contrast", "CT Abdomen/Pelvis — Contrast",
+    "CT Abdomen/Pelvis — Triple phase (liver)", "CT KUB — Stone protocol", "CT Urogram",
+    "CT Enterography", "CTA Aorta — Chest/Abdomen/Pelvis", "CTA Pulmonary", "CTA Coronary",
+    "CTA Carotid/Circle of Willis", "CTA Run-off (lower limb)", "CT Spine — Cervical",
+    "CT Spine — Thoracic", "CT Spine — Lumbar", "CT Extremity — Upper", "CT Extremity — Lower",
+    "CT Venogram", "Other / custom protocol"
+  ];
+
+  // Plain brain CT studies a technologist is allowed to pick when creating an ER/Inpatient
+  // order themselves. Radiologists still pick from the full PROTOCOLS list for ER/Inpatient.
+  // Includes "Other / custom protocol" as a fallback so editing an existing order that
+  // doesn't match one of the two allowed protocols still has somewhere valid to land.
+  var TECH_ALLOWED_ER_INPATIENT_PROTOCOLS = ["CT Head — Non-contrast", "CT Brain — Trauma", "Other / custom protocol"];
+
+  // Bilingual patient prep instructions, keyed by protocol name. Each protocol maps to an
+  // ARRAY of instruction-sheet variants (e.g. "Standard" vs "Renal impairment"), so more than
+  // one version can exist per protocol. These are now loaded from and saved to the shared
+  // backend by the Admin role — the values below are just the initial fallback before the
+  // first server load completes.
+  var SHARED_INSTRUCTIONS = {
+    en: ["No special preparation is listed yet — please confirm with the CT department before your appointment.", "Arrive 15 minutes before your appointment time.", "Bring your ID and any relevant prior imaging or lab results."],
+    ar: ["لم يتم تحديد تحضير خاص حتى الآن — يرجى التأكد مع قسم الأشعة المقطعية قبل الموعد.", "يرجى الحضور قبل 15 دقيقة من وقت الموعد.", "يرجى إحضار الهوية وأي نتائج تصوير أو تحاليل سابقة ذات صلة."]
+  };
+
+
+  var DEPARTMENTS = [
+    "Emergency Department", "Internal Medicine", "General Surgery", "Orthopedics", "Neurology",
+    "Neurosurgery", "Cardiology", "Pulmonology", "Nephrology", "Urology", "Oncology", "ICU",
+    "Pediatrics", "OB/GYN", "Outpatient Clinic", "Other"
+  ];
+
+  var SESSION_KEY = "ct_worklist_session_v2";
+
+  // Hospital/department logo shown at the top of the printed patient instruction sheet.
+  // PLACEHOLDER — currently empty, so no logo prints until you set this.
+  // To add your real logo: convert your logo image to a Base64 data URL (e.g. using
+  // https://www.base64-image.de or any "image to base64" converter) and paste the
+  // resulting string here, including the "data:image/png;base64," prefix.
+  // Example: var LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...";
+  var LOGO_DATA_URL = "";
+  var RETENTION_DAYS = 30;
+
+  // Staff account lists. These are now loaded from and saved to the shared backend by the
+  // Admin role — the values below are just the initial fallback before the first server load
+  // completes (so the login screen isn't empty for a moment on a slow connection).
+  // NOTE: this is a lightweight access gate for attribution, not real security — anyone who
+  // views this file's source, or who is logged in as Admin, can see these values.
+  var RADIOLOGISTS = [];
+  var TECHS = [];
+
+  // The Admin account is fixed in this file (not editable through the UI, since there's only
+  // ever meant to be one). Change the password here directly if you need to.
+  var ADMINS = [
+    { name: "admin", password: "AdmiN123" }
+  ];
+
+  // ---------- State ----------
+
+  var state = {
+    orders: [],
+    session: null, // { name, role }
+    filterPriority: "ALL",
+    filterStatus: "ACTIVE",
+    search: "",
+    expandedId: null,
+    editingId: null,
+    formPriority: "OUTPATIENT",
+    loginRole: "RADIOLOGIST",
+    viewDate: null // ISO date string (YYYY-MM-DD), set to today during init
+  };
+
+  // ---------- Helpers ----------
+
+  function uid() { return "ord_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8); }
+  function nowISO() { return new Date().toISOString(); }
+  function fmtTime(iso) {
+    if (!iso) return "—";
+    var d = new Date(iso);
+    return d.toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
+  function minutesAgo(iso) {
+    if (!iso) return 0;
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  }
+  function waitColor(mins, priority) {
+    var t = priority === "ER" ? [15, 30] : priority === "INPATIENT" ? [60, 120] : [180, 360];
+    if (mins >= t[1]) return "#B3261E";
+    if (mins >= t[0]) return "#9A5B00";
+    return "#5A5F6B";
+  }
+  function todayISODate() {
+    var d = new Date();
+    var y = d.getFullYear(), m = d.getMonth() + 1, dd = d.getDate();
+    return y + "-" + (m < 10 ? "0" + m : m) + "-" + (dd < 10 ? "0" + dd : dd);
+  }
+  function maxAppointmentISODate() {
+    var d = new Date();
+    d.setDate(d.getDate() + 30);
+    var y = d.getFullYear(), m = d.getMonth() + 1, dd = d.getDate();
+    return y + "-" + (m < 10 ? "0" + m : m) + "-" + (dd < 10 ? "0" + dd : dd);
+  }
+  // The date an order "belongs to" for the day-by-day view: outpatient orders use their
+  // appointment date; ER/Inpatient orders use the date they were scheduled (created), since
+  // they don't have a future appointment date.
+  function orderDisplayDate(order) {
+    if (order.priority === "OUTPATIENT" && order.appointmentDate) return order.appointmentDate;
+    return (order.scheduledAt || order.createdAt || "").slice(0, 10);
+  }
+  function shiftISODate(isoDate, days) {
+    var d = new Date(isoDate + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    // Use local year/month/day instead of toISOString() which returns UTC and can shift
+    // the date backward by one day in UTC+offset timezones like Saudi Arabia (UTC+3).
+    var y = d.getFullYear();
+    var m = d.getMonth() + 1;
+    var dd = d.getDate();
+    return y + "-" + (m < 10 ? "0" + m : m) + "-" + (dd < 10 ? "0" + dd : dd);
+  }
+  function fmtDayLabel(isoDate) {
+    var d = new Date(isoDate + "T00:00:00");
+    var today = todayISODate();
+    var tomorrow = shiftISODate(today, 1);
+    var yesterday = shiftISODate(today, -1);
+    var weekday = d.toLocaleDateString(undefined, { weekday: "long" });
+    var full = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    if (isoDate === today) return "Today · " + full;
+    if (isoDate === tomorrow) return "Tomorrow · " + full;
+    if (isoDate === yesterday) return "Yesterday · " + full;
+    return weekday + " · " + full;
+  }
+  // Snaps an "HH:MM" time string to the nearest 10-minute mark, since not every browser's
+  // native time picker fully respects the step="600" attribute.
+  function snapToTenMinutes(hhmm) {
+    if (!hhmm) return hhmm;
+    var parts = hhmm.split(":");
+    var h = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    var snapped = Math.round(m / 10) * 10;
+    if (snapped === 60) { snapped = 0; h = (h + 1) % 24; }
+    return (h < 10 ? "0" + h : h) + ":" + (snapped < 10 ? "0" + snapped : snapped);
+  }
+  // All 10-minute slots in a single day, e.g. ["00:00","00:10",...,"23:50"] — used to build
+  // the fixed time-slot grid for outpatient day view.
+  function allTenMinuteSlots() {
+    var slots = [];
+    for (var h = 0; h < 24; h++) {
+      for (var m = 0; m < 60; m += 10) {
+        slots.push((h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m));
+      }
+    }
+    return slots;
+  }
+  function escapeHtml(str) {
+    if (str == null) return "";
+    return String(str).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function purgeExpired(list) {
+    var now = Date.now();
+    return list.filter(function (o) {
+      if (o.status === "DONE") {
+        var completedAt = o.doneAt || o.createdAt;
+        var ageDays = (now - new Date(completedAt).getTime()) / 86400000;
+        return ageDays < RETENTION_DAYS;
+      }
+      return true;
+    });
+  }
+
+  // Unlike purgeExpired (a local display filter), this actually deletes expired rows from
+  // the server, since orders now live as individual Supabase rows rather than one combined
+  // blob that quietly drops old entries on every save.
+  function purgeExpiredOnServer(list) {
+    var now = Date.now();
+    var expiredIds = list
+      .filter(function (o) {
+        // Hard-delete completed orders past their retention window.
+        if (o.status === "DONE") {
+          var completedAt = o.doneAt || o.createdAt;
+          var ageDays = (now - new Date(completedAt).getTime()) / 86400000;
+          return ageDays >= RETENTION_DAYS;
+        }
+        // Hard-delete soft-deleted outpatient orders that are more than 7 days past
+        // their appointment date — they've passed the admin's recovery window.
+        if (o.deletedAt && o.priority === "OUTPATIENT" && o.appointmentDate) {
+          var apptDate = new Date(o.appointmentDate + "T00:00:00");
+          var daysPastAppt = (now - apptDate.getTime()) / 86400000;
+          return daysPastAppt >= 7;
+        }
+        return false;
+      })
+      .map(function (o) { return o.id; });
+    expiredIds.forEach(function (id) { deleteOrderRow(id); });
+  }
+
+  // ---------- Storage ----------
+  //
+  // Shared data now lives in a Supabase Postgres database, reached through Supabase's
+  // auto-generated REST API (PostgREST). Two kinds of tables are used:
+  //   - "orders": one row per order, looked up/written by its id.
+  //   - "radiologists" / "techs" / "instructions" / "branding": a single row (id = 1)
+  //     holding one JSON blob each, same shape as the old Apps Script collections.
+  //
+  // Login session stays in this browser's localStorage on purpose — each person signs in
+  // on their own device, that part doesn't need to be shared.
+
+  var SUPABASE_URL = "https://ijewyhznulnuhnhqhqrd.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZXd5aHpudWxudWhuaHFocXJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NjA0NzIsImV4cCI6MjA5ODIzNjQ3Mn0.EiewC-gZFKFU3MmWrNjtirr5S-Vdt8IOOLrKHud0F1Y";
+
+  var syncState = { saving: false, lastError: null };
+
+  function apiConfigured() {
+    return SUPABASE_URL && SUPABASE_URL.indexOf("https://") === 0 && SUPABASE_ANON_KEY;
+  }
+
+  function supabaseHeaders(extra) {
+    var headers = {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+      "Content-Type": "application/json"
+    };
+    if (extra) {
+      for (var k in extra) headers[k] = extra[k];
+    }
+    return headers;
+  }
+
+  // ---- Orders: one row per order in the "orders" table, with the order's fields packed
+  // into a "data" jsonb column (keeps the app's order-shape logic unchanged elsewhere). ----
+
+  function fetchOrdersFromServer() {
+    if (!apiConfigured()) return Promise.resolve(state.orders);
+    var url = SUPABASE_URL + "/rest/v1/orders?select=id,data";
+    return fetch(url, { method: "GET", headers: supabaseHeaders() })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        return res.json();
+      })
+      .then(function (rows) {
+        var list = rows.map(function (row) {
+          var order = row.data || {};
+          order.id = row.id; // id lives as its own column too; keep it on the object
+          return order;
+        });
+        hideConnectionWarning();
+        return purgeExpired(list);
+      })
+      .catch(function (err) {
+        console.error("Failed to load orders from server:", err);
+        showConnectionWarning("Couldn't reach the shared server. Showing the last data loaded on this device.");
+        return state.orders;
+      });
+  }
+
+  function saveOrders(list) {
+    // Optimistic local update so the UI feels instant; the actual diff-and-write to
+    // Supabase happens in the background via upsertOrder/deleteOrderRow, called by the
+    // order-mutation functions below rather than by re-saving the whole list at once.
+    state.orders = list;
+    return Promise.resolve();
+  }
+
+  function upsertOrderRow(order) {
+    if (!apiConfigured()) {
+      showConnectionWarning("Shared storage isn't set up yet — changes will not be saved or shared.");
+      return Promise.resolve();
+    }
+    syncState.saving = true;
+    var url = SUPABASE_URL + "/rest/v1/orders?on_conflict=id";
+    var row = { id: order.id, data: order, updated_at: new Date().toISOString() };
+    return fetch(url, {
+      method: "POST",
+      headers: supabaseHeaders({ "Prefer": "resolution=merge-duplicates,return=minimal" }),
+      body: JSON.stringify(row)
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        syncState.lastError = null;
+        hideConnectionWarning();
+      })
+      .catch(function (err) {
+        console.error("Failed to save order to server:", err);
+        syncState.lastError = err;
+        showConnectionWarning("Couldn't save your last change to the shared server. Check your internet connection.");
+      })
+      .finally(function () { syncState.saving = false; });
+  }
+
+  function deleteOrderRow(id) {
+    if (!apiConfigured()) return Promise.resolve();
+    var url = SUPABASE_URL + "/rest/v1/orders?id=eq." + encodeURIComponent(id);
+    return fetch(url, { method: "DELETE", headers: supabaseHeaders({ "Prefer": "return=minimal" }) })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        hideConnectionWarning();
+      })
+      .catch(function (err) {
+        console.error("Failed to delete order on server:", err);
+        showConnectionWarning("Couldn't delete that order on the shared server. Check your internet connection.");
+      });
+  }
+
+  // ---- Single-row JSON collections: radiologists, techs, instructions, branding ----
+
+  function fetchSingleRow(table, fallback) {
+    if (!apiConfigured()) return Promise.resolve(fallback);
+    var url = SUPABASE_URL + "/rest/v1/" + table + "?select=data&id=eq.1";
+    return fetch(url, { method: "GET", headers: supabaseHeaders() })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        return res.json();
+      })
+      .then(function (rows) {
+        hideConnectionWarning();
+        return (rows && rows[0] && rows[0].data !== undefined) ? rows[0].data : fallback;
+      })
+      .catch(function (err) {
+        console.error("Failed to load '" + table + "' from server:", err);
+        showConnectionWarning("Couldn't reach the shared server. Showing the last data loaded on this device.");
+        return fallback;
+      });
+  }
+
+  function saveSingleRow(table, value) {
+    if (!apiConfigured()) {
+      showConnectionWarning("Shared storage isn't set up yet — changes will not be saved or shared.");
+      return Promise.resolve();
+    }
+    syncState.saving = true;
+    var url = SUPABASE_URL + "/rest/v1/" + table + "?on_conflict=id";
+    return fetch(url, {
+      method: "POST",
+      headers: supabaseHeaders({ "Prefer": "resolution=merge-duplicates,return=minimal" }),
+      body: JSON.stringify({ id: 1, data: value })
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        syncState.lastError = null;
+        hideConnectionWarning();
+      })
+      .catch(function (err) {
+        console.error("Failed to save '" + table + "' to server:", err);
+        syncState.lastError = err;
+        showConnectionWarning("Couldn't save your last change to the shared server. Check your internet connection.");
+      })
+      .finally(function () { syncState.saving = false; });
+  }
+
+  function fetchRadiologists() { return fetchSingleRow("radiologists", RADIOLOGISTS); }
+  function fetchTechs() { return fetchSingleRow("techs", TECHS); }
+  function fetchInstructions() { return fetchSingleRow("instructions", SHARED_INSTRUCTIONS); }
+  function saveRadiologists(list) { RADIOLOGISTS = list; return saveSingleRow("radiologists", list); }
+  function saveTechs(list) { TECHS = list; return saveSingleRow("techs", list); }
+  function saveInstructions(obj) { SHARED_INSTRUCTIONS = obj; return saveSingleRow("instructions", obj); }
+  function fetchLogo() { return fetchSingleRow("branding", LOGO_DATA_URL); }
+  function saveLogo(dataUrl) { LOGO_DATA_URL = dataUrl; return saveSingleRow("branding", dataUrl); }
+
+  function loadSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var saved = JSON.parse(raw);
+      var list = saved.role === "TECH" ? TECHS : saved.role === "ADMIN" ? ADMINS : RADIOLOGISTS;
+      var ok = list.some(function (r) { return r.name === saved.name; });
+      return ok ? saved : null;
+    } catch (e) { return null; }
+  }
+  function saveSession(sess) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(sess)); } catch (e) {}
+  }
+  function clearSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  }
+
+  function showConnectionWarning(msg) {
+    var banner = document.getElementById("connectionWarning");
+    if (banner) {
+      banner.textContent = msg;
+      banner.classList.remove("hidden");
+    }
+  }
+  function hideConnectionWarning() {
+    var banner = document.getElementById("connectionWarning");
+    if (banner) banner.classList.add("hidden");
+  }
+
+  // ---------- DOM refs ----------
+
+  var $ = function (id) { return document.getElementById(id); };
+  var loginScreen = $("loginScreen");
+  var app = $("app");
+  var loginForm = $("loginForm");
+  var roleToggle = $("roleToggle");
+  var loginName = $("loginName");
+  var loginPassword = $("loginPassword");
+  var loginError = $("loginError");
+  var userName = $("userName");
+  var userRoleTag = $("userRoleTag");
+  var logoutBtn = $("logoutBtn");
+  var countPills = $("countPills");
+  var searchInput = $("searchInput");
+  var prevDayBtn = $("prevDayBtn");
+  var nextDayBtn = $("nextDayBtn");
+  var todayBtn = $("todayBtn");
+  var dayNavLabel = $("dayNavLabel");
+  var dayDatePicker = $("dayDatePicker");
+  var priorityFilterGroup = $("priorityFilterGroup");
+  var statusSelect = $("statusSelect");
+  var outpatientList = $("outpatientList");
+  var outpatientEmpty = $("outpatientEmpty");
+  var erInpatientList = $("erInpatientList");
+  var erInpatientEmpty = $("erInpatientEmpty");
+  var erInpatientTableHead = $("erInpatientTableHead");
+  var newOrderBtn = $("newOrderBtn");
+  var modalOverlay = $("modalOverlay");
+  var orderForm = $("orderForm");
+  var protocolModalOverlay = $("protocolModalOverlay");
+  var protocolForm = $("protocolForm");
+  var protocolModalClose = $("protocolModalClose");
+  var protocolCancelBtn = $("protocolCancelBtn");
+  var protocolModalContext = $("protocolModalContext");
+  var protocolTextInput = $("protocolTextInput");
+  var protocolFormError = $("protocolFormError");
+  var modalTitle = $("modalTitle");
+  var modalClose = $("modalClose");
+  var cancelBtn = $("cancelBtn");
+  var fileNumberInput = $("fileNumber");
+  var patientNameInput = $("patientName");
+  var referralConfirmedInput = $("referralConfirmed");
+  var referralConfirmedField = $("referralConfirmedField");
+  var needsProtocolingField = $("needsProtocolingField");
+  var needsProtocolingInput = $("needsProtocoling");
+  var priorityToggle = $("priorityToggle");
+  var protocolSelect = $("protocolSelect");
+  var customProtocolField = $("customProtocolField");
+  var customProtocolInput = $("customProtocol");
+  var appointmentField = $("appointmentField");
+  var appointmentDateInput = $("appointmentDate");
+  var appointmentTimeField = $("appointmentTimeField");
+  var appointmentTimeInput = $("appointmentTime");
+  var dateLoadSummary = $("dateLoadSummary");
+  var referringDeptSelect = $("referringDept");
+  var notesField = $("notesField");
+  var formError = $("formError");
+  var toast = $("toast");
+
+  // ---------- Toast ----------
+
+  var toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.remove("hidden");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.add("hidden"); }, 2200);
+  }
+
+  // ---------- Login ----------
+
+  function accountListForRole(role) {
+    if (role === "TECH") return TECHS;
+    if (role === "ADMIN") return ADMINS;
+    return RADIOLOGISTS;
+  }
+
+  function populateLoginNames() {
+    var list = accountListForRole(state.loginRole);
+    loginName.innerHTML = "";
+    list.forEach(function (r) {
+      var opt = document.createElement("option");
+      opt.value = r.name;
+      opt.textContent = r.name;
+      loginName.appendChild(opt);
+    });
+  }
+
+  Array.prototype.forEach.call(roleToggle.children, function (btn) {
+    btn.addEventListener("click", function () {
+      state.loginRole = btn.getAttribute("data-role");
+      Array.prototype.forEach.call(roleToggle.children, function (b) { b.classList.toggle("active", b === btn); });
+      populateLoginNames();
+      loginError.classList.add("hidden");
+    });
+  });
+
+  function attemptLogin(e) {
+    e.preventDefault();
+    var name = loginName.value;
+    var password = loginPassword.value;
+    var list = accountListForRole(state.loginRole);
+    var match = list.filter(function (r) { return r.name === name && r.password === password; })[0];
+    if (!match) {
+      loginError.textContent = "Incorrect password for this account.";
+      loginError.classList.remove("hidden");
+      return;
+    }
+    loginError.classList.add("hidden");
+    state.session = { name: match.name, role: state.loginRole };
+    saveSession(state.session);
+
+    if (state.loginRole === "ADMIN") {
+      showAdminShell();
+      return;
+    }
+
+    showAppShell();
+    fetchOrdersFromServer().then(function (list) {
+      state.orders = list;
+      render();
+    });
+  }
+
+  function logout() {
+    state.session = null;
+    clearSession();
+    loginPassword.value = "";
+    app.classList.add("hidden");
+    document.getElementById("adminApp").classList.add("hidden");
+    loginScreen.classList.remove("hidden");
+  }
+
+  function showAppShell() {
+    loginScreen.classList.add("hidden");
+    app.classList.remove("hidden");
+    userName.textContent = state.session.name;
+    userRoleTag.textContent = state.session.role === "TECH" ? "Tech" : "Radiologist";
+    newOrderBtn.classList.remove("hidden");
+  }
+
+  function enterApp() {
+    showAppShell();
+    render();
+  }
+
+  // ---------- Admin dashboard ----------
+
+  var adminApp = document.getElementById("adminApp");
+  var adminUserName = document.getElementById("adminUserName");
+  var adminLogoutBtn = document.getElementById("adminLogoutBtn");
+  var adminTabs = document.getElementById("adminTabs");
+  var adminTabStaff = document.getElementById("adminTabStaff");
+  var adminTabInstructions = document.getElementById("adminTabInstructions");
+  var radiologistListEl = document.getElementById("radiologistList");
+  var techListEl = document.getElementById("techList");
+  var sharedEnInput = document.getElementById("sharedEnInput");
+  var sharedArInput = document.getElementById("sharedArInput");
+  var sharedInstrError = document.getElementById("sharedInstrError");
+  var saveSharedInstrBtn = document.getElementById("saveSharedInstrBtn");
+  var adminTabBranding = document.getElementById("adminTabBranding");
+  var adminTabDeleted = document.getElementById("adminTabDeleted");
+  var deletedOrdersList = document.getElementById("deletedOrdersList");
+  var logoPreviewWrap = document.getElementById("logoPreviewWrap");
+  var logoFileInput = document.getElementById("logoFileInput");
+  var logoRemoveBtn = document.getElementById("logoRemoveBtn");
+
+  var staffModalOverlay = document.getElementById("staffModalOverlay");
+  var staffForm = document.getElementById("staffForm");
+  var staffModalTitle = document.getElementById("staffModalTitle");
+  var staffModalClose = document.getElementById("staffModalClose");
+  var staffCancelBtn = document.getElementById("staffCancelBtn");
+  var staffNameInput = document.getElementById("staffNameInput");
+  var staffPasswordInput = document.getElementById("staffPasswordInput");
+  var staffFormError = document.getElementById("staffFormError");
+
+  var adminState = {
+    editingStaffRole: null, // "RADIOLOGIST" | "TECH"
+    editingStaffName: null // null = adding new
+  };
+
+  function showAdminShell() {
+    loginScreen.classList.add("hidden");
+    adminApp.classList.remove("hidden");
+    adminUserName.textContent = state.session.name;
+    renderStaffLists();
+    populateSharedInstructionFields();
+    renderLogoPreview();
+  }
+
+  adminLogoutBtn.addEventListener("click", logout);
+
+  Array.prototype.forEach.call(adminTabs.children, function (btn) {
+    btn.addEventListener("click", function () {
+      var tab = btn.getAttribute("data-tab");
+      Array.prototype.forEach.call(adminTabs.children, function (b) { b.classList.toggle("active", b === btn); });
+      adminTabStaff.classList.toggle("hidden", tab !== "staff");
+      adminTabInstructions.classList.toggle("hidden", tab !== "instructions");
+      adminTabBranding.classList.toggle("hidden", tab !== "branding");
+      adminTabDeleted.classList.toggle("hidden", tab !== "deleted");
+      if (tab === "deleted") renderDeletedOrdersList();
+    });
+  });
+
+  // ---- Branding (logo) ----
+
+  function renderLogoPreview() {
+    if (LOGO_DATA_URL) {
+      logoPreviewWrap.innerHTML = '<img src="' + LOGO_DATA_URL + '" alt="Current logo" style="max-height:70px;max-width:240px;object-fit:contain;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;" />';
+    } else {
+      logoPreviewWrap.innerHTML = '<div class="staff-empty">No logo set yet — the printed sheet currently shows no logo.</div>';
+    }
+  }
+
+  logoFileInput.addEventListener("change", function () {
+    var file = logoFileInput.files && logoFileInput.files[0];
+    if (!file) return;
+    // This used to be capped at 30KB because of Google Sheets' ~50,000-character cell limit,
+    // back when Apps Script was the backend. We're on Supabase now — a jsonb column can hold
+    // up to 1GB, so that constraint no longer applies. The cap below is just a sanity check
+    // for page-load speed, since the logo gets fetched on every login.
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("Please choose an image smaller than 2MB.");
+      logoFileInput.value = "";
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () {
+      saveLogo(reader.result).then(function () {
+        renderLogoPreview();
+        showToast("Logo updated");
+        logoFileInput.value = "";
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+
+  logoRemoveBtn.addEventListener("click", function () {
+    if (!LOGO_DATA_URL) return;
+    if (!window.confirm("Remove the logo from printed sheets?")) return;
+    saveLogo("").then(function () {
+      renderLogoPreview();
+      showToast("Logo removed");
+    });
+  });
+
+  // ---- Deleted orders ----
+
+  function renderDeletedOrdersList() {
+    var deleted = state.orders.filter(function (o) { return !!o.deletedAt; });
+    if (!deleted.length) {
+      deletedOrdersList.innerHTML = '<div class="staff-empty">No deleted orders at the moment.</div>';
+      return;
+    }
+    var now = Date.now();
+    deletedOrdersList.innerHTML = deleted.map(function (o) {
+      var apptDate = o.appointmentDate || "—";
+      var apptTime = o.appointmentTime || "—";
+      var deletedWhen = fmtTime(o.deletedAt);
+      var daysLeft = o.appointmentDate
+        ? Math.max(0, 7 - Math.floor((now - new Date(o.appointmentDate + "T00:00:00").getTime()) / 86400000))
+        : "?";
+      return '<div class="staff-row" style="flex-wrap:wrap;gap:6px 10px;">' +
+        '<div style="flex:1 1 auto;">' +
+          '<div style="font-weight:700;font-size:13px;">' + escapeHtml(o.fileNumber) + (o.patientName ? " — " + escapeHtml(o.patientName) : "") + '</div>' +
+          '<div style="font-size:12px;color:var(--sub);">' + escapeHtml(o.protocol) + ' · ' + escapeHtml(apptDate) + (apptTime !== "—" ? " at " + escapeHtml(apptTime) : "") + '</div>' +
+          '<div style="font-size:11px;color:var(--faint);">Deleted ' + escapeHtml(deletedWhen) + ' by ' + escapeHtml(o.deletedBy || "—") + ' · ' + daysLeft + (daysLeft === 1 ? ' day' : ' days') + ' until permanent removal</div>' +
+        '</div>' +
+        '<span class="row-btns">' +
+          '<button type="button" class="btn-small primary" data-action="restore-order" data-id="' + o.id + '">Restore</button>' +
+          '<button type="button" class="btn-small danger" data-action="perm-delete-order" data-id="' + o.id + '">Delete permanently</button>' +
+        '</span>' +
+      '</div>';
+    }).join("");
+  }
+
+  deletedOrdersList.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-action]");
+    if (!el) return;
+    var action = el.getAttribute("data-action");
+    var id = el.getAttribute("data-id");
+    var target = state.orders.filter(function (o) { return o.id === id; })[0];
+    if (!target) return;
+
+    if (action === "restore-order") {
+      updateOrder(id, { deletedAt: null, deletedBy: null }).then(function () {
+        renderDeletedOrdersList();
+        showToast("Order restored to worklist");
+      });
+    } else if (action === "perm-delete-order") {
+      if (!window.confirm("Permanently delete order for file #" + target.fileNumber + "? This cannot be undone.")) return;
+      state.orders = state.orders.filter(function (o) { return o.id !== id; });
+      deleteOrderRow(id).then(function () {
+        renderDeletedOrdersList();
+        showToast("Order permanently deleted");
+      });
+    }
+  });
+
+  // ---- Staff management ----
+
+  function renderStaffLists() {
+    renderStaffListInto(radiologistListEl, RADIOLOGISTS, "RADIOLOGIST");
+    renderStaffListInto(techListEl, TECHS, "TECH");
+  }
+
+  function renderStaffListInto(container, list, role) {
+    if (!list.length) {
+      container.innerHTML = '<div class="staff-empty">No accounts yet.</div>';
+      return;
+    }
+    container.innerHTML = list.map(function (person) {
+      return '<div class="staff-row">' +
+        '<span class="name">' + escapeHtml(person.name) + '</span>' +
+        '<span class="row-btns">' +
+          '<button type="button" class="btn-small" data-action="edit-staff" data-role="' + role + '" data-name="' + escapeHtml(person.name) + '">Edit</button>' +
+          '<button type="button" class="btn-small danger" data-action="delete-staff" data-role="' + role + '" data-name="' + escapeHtml(person.name) + '">Remove</button>' +
+        '</span>' +
+      '</div>';
+    }).join("");
+  }
+
+  function openStaffForm(role, existingName) {
+    adminState.editingStaffRole = role;
+    adminState.editingStaffName = existingName || null;
+    staffFormError.classList.add("hidden");
+    var roleLabel = role === "TECH" ? "technologist" : "radiologist";
+    staffModalTitle.textContent = existingName ? ("Edit " + roleLabel) : ("Add " + roleLabel);
+
+    if (existingName) {
+      var list = role === "TECH" ? TECHS : RADIOLOGISTS;
+      var person = list.filter(function (p) { return p.name === existingName; })[0];
+      staffNameInput.value = person ? person.name : "";
+      staffPasswordInput.value = person ? person.password : "";
+    } else {
+      staffNameInput.value = "";
+      staffPasswordInput.value = "";
+    }
+    staffModalOverlay.classList.remove("hidden");
+  }
+  function closeStaffForm() {
+    staffModalOverlay.classList.add("hidden");
+  }
+
+  staffModalClose.addEventListener("click", closeStaffForm);
+  staffCancelBtn.addEventListener("click", closeStaffForm);
+  staffModalOverlay.addEventListener("click", function (e) { if (e.target === staffModalOverlay) closeStaffForm(); });
+
+  staffForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = staffNameInput.value.trim();
+    var password = staffPasswordInput.value.trim();
+    if (!name) { showStaffFormError("Name is required."); return; }
+    if (!password) { showStaffFormError("Password is required."); return; }
+
+    var role = adminState.editingStaffRole;
+    var isTech = role === "TECH";
+    var list = (isTech ? TECHS : RADIOLOGISTS).slice();
+    var editingName = adminState.editingStaffName;
+
+    var duplicate = list.some(function (p) { return p.name === name && p.name !== editingName; });
+    if (duplicate) { showStaffFormError("An account with this name already exists."); return; }
+
+    if (editingName) {
+      list = list.map(function (p) { return p.name === editingName ? { name: name, password: password } : p; });
+    } else {
+      list.push({ name: name, password: password });
+    }
+
+    var saveFn = isTech ? saveTechs : saveRadiologists;
+    saveFn(list).then(function () {
+      renderStaffLists();
+      showToast(editingName ? "Account updated" : "Account added");
+      closeStaffForm();
+    });
+  });
+
+  function showStaffFormError(msg) {
+    staffFormError.textContent = msg;
+    staffFormError.classList.remove("hidden");
+  }
+
+  adminTabStaff.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-action]");
+    if (!el) return;
+    var action = el.getAttribute("data-action");
+    var role = el.getAttribute("data-role");
+    var name = el.getAttribute("data-name");
+
+    if (action === "add-staff") {
+      openStaffForm(role, null);
+    } else if (action === "edit-staff") {
+      openStaffForm(role, name);
+    } else if (action === "delete-staff") {
+      if (!window.confirm("Remove " + name + "? They will no longer be able to sign in.")) return;
+      var isTech = role === "TECH";
+      var list = (isTech ? TECHS : RADIOLOGISTS).filter(function (p) { return p.name !== name; });
+      var saveFn = isTech ? saveTechs : saveRadiologists;
+      saveFn(list).then(function () {
+        renderStaffLists();
+        showToast("Account removed");
+      });
+    }
+  });
+
+  // ---- Shared instruction management ----
+
+  function populateSharedInstructionFields() {
+    sharedEnInput.value = (SHARED_INSTRUCTIONS.en || []).join("\n");
+    sharedArInput.value = (SHARED_INSTRUCTIONS.ar || []).join("\n");
+    sharedInstrError.classList.add("hidden");
+  }
+
+  saveSharedInstrBtn.addEventListener("click", function () {
+    var enLines = sharedEnInput.value.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+    var arLines = sharedArInput.value.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+
+    if (!enLines.length || !arLines.length) {
+      sharedInstrError.textContent = "Enter at least one line for both English and Arabic.";
+      sharedInstrError.classList.remove("hidden");
+      return;
+    }
+    sharedInstrError.classList.add("hidden");
+
+    saveInstructions({ en: enLines, ar: arLines }).then(function () {
+      showToast("Instructions saved");
+    });
+  });
+
+  // ---------- Form helpers (radiologist only) ----------
+
+  function populateProtocols(allowedList) {
+    var list = allowedList || PROTOCOLS;
+    var previousValue = protocolSelect.value;
+    protocolSelect.innerHTML = "";
+    list.forEach(function (p) {
+      var opt = document.createElement("option");
+      opt.value = p; opt.textContent = p;
+      protocolSelect.appendChild(opt);
+    });
+    // Keep the previous selection if it's still valid in the new list; otherwise default to
+    // the first option, so switching priority doesn't silently leave a stale/invalid value.
+    protocolSelect.value = list.indexOf(previousValue) !== -1 ? previousValue : list[0];
+    customProtocolField.classList.toggle("hidden", protocolSelect.value !== "Other / custom protocol");
+  }
+  function populateDepartments() {
+    referringDeptSelect.innerHTML = "";
+    DEPARTMENTS.forEach(function (d) {
+      var opt = document.createElement("option");
+      opt.value = d; opt.textContent = d;
+      referringDeptSelect.appendChild(opt);
+    });
+  }
+
+  // Returns the protocol list a person is allowed to pick from, given their role and the
+  // priority they've selected in the form right now.
+  function allowedProtocolsFor(role, priority) {
+    if (role === "TECH" && priority !== "OUTPATIENT") return TECH_ALLOWED_ER_INPATIENT_PROTOCOLS;
+    return PROTOCOLS;
+  }
+
+  function setFormPriority(p) {
+    state.formPriority = p;
+    Array.prototype.forEach.call(priorityToggle.children, function (btn) {
+      var active = btn.getAttribute("data-priority") === p;
+      var conf = PRIORITY[btn.getAttribute("data-priority")];
+      btn.style.background = active ? conf.bg : "#fff";
+      btn.style.color = active ? conf.color : "#6B7080";
+      btn.style.borderColor = active ? conf.color : "#D9DBE1";
+    });
+    appointmentField.classList.toggle("hidden", p !== "OUTPATIENT");
+    appointmentTimeField.classList.toggle("hidden", p !== "OUTPATIENT");
+    referralConfirmedField.classList.toggle("hidden", p !== "OUTPATIENT");
+    needsProtocolingField.classList.toggle("hidden", p !== "OUTPATIENT");
+    populateProtocols(allowedProtocolsFor(state.session.role, p));
+    updateDateLoadSummary();
+  }
+
+  function applyRolePriorityConstraint(editingOrder) {
+    var isTech = state.session.role === "TECH";
+    if (editingOrder) {
+      // Editing: lock the toggle to whatever type this order already is — don't let anyone
+      // change an order's category after the fact, regardless of role.
+      Array.prototype.forEach.call(priorityToggle.children, function (btn) {
+        var p = btn.getAttribute("data-priority");
+        btn.classList.toggle("hidden", p !== editingOrder.priority);
+      });
+      return;
+    }
+    // Techs can now create any priority type, but ER/Inpatient is restricted to a small set
+    // of plain protocols (see TECH_ALLOWED_ER_INPATIENT_PROTOCOLS) — radiologists still
+    // create ER/Inpatient with the full protocol list, techs still create Outpatient freely.
+    Array.prototype.forEach.call(priorityToggle.children, function (btn) {
+      btn.classList.toggle("hidden", !isTech && btn.getAttribute("data-priority") === "OUTPATIENT");
+    });
+  }
+
+  function openForm(order) {
+    formError.classList.add("hidden");
+    state.editingId = order ? order.id : null;
+    modalTitle.textContent = order ? "Edit order" : "New CT order";
+    document.getElementById("submitBtn").textContent = order ? "Save changes" : "Add to worklist";
+
+    applyRolePriorityConstraint(order);
+
+    fileNumberInput.value = order ? order.fileNumber : "";
+    patientNameInput.value = order ? (order.patientName || "") : "";
+    referralConfirmedInput.checked = order ? !!order.referralConfirmed : false;
+    needsProtocolingInput.checked = order ? !!order.needsProtocoling : false;
+    var defaultPriority = order ? order.priority : (state.session.role === "TECH" ? "OUTPATIENT" : "ER");
+    setFormPriority(defaultPriority); // this already repopulates protocolSelect with the right allowed list
+
+    var protocol = order ? order.protocol : protocolSelect.value;
+    var allowedList = allowedProtocolsFor(state.session.role, defaultPriority);
+    var isKnown = allowedList.indexOf(protocol) !== -1;
+    protocolSelect.value = isKnown ? protocol : "Other / custom protocol";
+    customProtocolField.classList.toggle("hidden", protocolSelect.value !== "Other / custom protocol");
+    customProtocolInput.value = isKnown ? "" : (protocol || "");
+
+    referringDeptSelect.value = order ? order.referringDept : DEPARTMENTS[0];
+    notesField.value = order && order.notes ? order.notes : "";
+
+    appointmentDateInput.min = todayISODate();
+    appointmentDateInput.max = maxAppointmentISODate();
+    appointmentDateInput.value = order && order.appointmentDate ? order.appointmentDate : todayISODate();
+    appointmentTimeInput.value = order && order.appointmentTime ? order.appointmentTime : snapToTenMinutes(new Date().toTimeString().slice(0, 5));
+    updateDateLoadSummary(); // now that the date is actually set, refresh the summary against it
+
+    modalOverlay.classList.remove("hidden");
+  }
+  function closeForm() {
+    modalOverlay.classList.add("hidden");
+    state.editingId = null;
+  }
+
+  function handleProtocolChange() {
+    customProtocolField.classList.toggle("hidden", protocolSelect.value !== "Other / custom protocol");
+  }
+
+  function submitForm(e) {
+    e.preventDefault();
+    var fileNumber = fileNumberInput.value.trim();
+    var isCustom = protocolSelect.value === "Other / custom protocol";
+    var finalProtocol = isCustom ? customProtocolInput.value.trim() : protocolSelect.value;
+    var isTech = state.session.role === "TECH";
+    var isEditing = !!state.editingId;
+
+    if (!isEditing) {
+      if (!isTech && state.formPriority === "OUTPATIENT") {
+        showFormError("Radiologists create ER and Inpatient orders. Outpatient orders are created by the technologist.");
+        return;
+      }
+      if (isTech && state.formPriority !== "OUTPATIENT") {
+        var techProtocolAllowed = TECH_ALLOWED_ER_INPATIENT_PROTOCOLS.indexOf(finalProtocol) !== -1 && !isCustom;
+        if (!techProtocolAllowed) {
+          showFormError("Technologists can only create ER/Inpatient orders for plain CT Head (non-contrast) or CT Brain — Trauma. For other studies, ask a radiologist to enter the order.");
+          return;
+        }
+      }
+    }
+
+    if (!fileNumber) { showFormError("Patient file number is required."); return; }
+    var patientName = patientNameInput.value.trim();
+    if (state.formPriority === "OUTPATIENT" && !referralConfirmedInput.checked) {
+      showFormError("Please confirm the referring doctor's request exists before continuing.");
+      return;
+    }
+    if (isCustom && !finalProtocol) { showFormError("Enter the custom protocol name."); return; }
+
+    var appointmentDate = null;
+    var appointmentTime = null;
+    if (state.formPriority === "OUTPATIENT") {
+      appointmentDate = appointmentDateInput.value;
+      var today = todayISODate(), max = maxAppointmentISODate();
+      if (appointmentDate < today) { showFormError("Appointment date can't be in the past."); return; }
+      if (appointmentDate > max) { showFormError("Outpatient appointments can only be booked up to 1 month ahead."); return; }
+      appointmentTime = snapToTenMinutes(appointmentTimeInput.value);
+      if (!appointmentTime) { showFormError("Appointment time is required for outpatient studies."); return; }
+    }
+
+    formError.classList.add("hidden");
+
+    var data = {
+      fileNumber: fileNumber,
+      patientName: patientName,
+      referralConfirmed: state.formPriority === "OUTPATIENT" ? true : null,
+      needsProtocoling: state.formPriority === "OUTPATIENT" ? needsProtocolingInput.checked : false,
+      priority: state.formPriority,
+      protocol: finalProtocol,
+      referringDept: referringDeptSelect.value,
+      notes: notesField.value.trim(),
+      appointmentDate: appointmentDate,
+      appointmentTime: appointmentTime
+    };
+
+    if (state.editingId) {
+      updateOrder(state.editingId, data);
+      showToast("Order updated");
+    } else {
+      addOrder(data);
+    }
+    // Jump the day view to wherever this order actually belongs, so it doesn't look like
+    // it vanished if it was scheduled/booked for a day other than the one currently shown.
+    var targetDate = data.priority === "OUTPATIENT" && data.appointmentDate ? data.appointmentDate : todayISODate();
+    state.viewDate = targetDate;
+    closeForm();
+  }
+  function showFormError(msg) {
+    formError.textContent = msg;
+    formError.classList.remove("hidden");
+  }
+
+  // ---------- Order CRUD ----------
+  //
+  // Because the whole worklist is stored as one JSON blob, every mutation
+  // re-fetches the latest data first and applies the change on top of that,
+  // rather than on top of whatever this device last had in memory. This
+  // narrows (but can't fully close) the window for two devices to overwrite
+  // each other's changes if they save at the exact same moment.
+
+  function addOrder(data) {
+    var t = nowISO();
+    var isTech = state.session.role === "TECH";
+    var order = Object.assign({}, data, {
+      id: uid(),
+      createdAt: t,
+      status: "SCHEDULED",
+      radiologist: isTech ? null : state.session.name,
+      tech: isTech ? state.session.name : null,
+      scheduledAt: t,
+      askedToSendAt: null,
+      doneAt: null
+    });
+    state.orders = [order].concat(state.orders); // optimistic local update
+    render();
+    var p = upsertOrderRow(order);
+    showToast("Order added to worklist");
+    return p;
+  }
+
+  function updateOrder(id, patch) {
+    var updatedOrder = null;
+    state.orders = state.orders.map(function (o) {
+      if (o.id !== id) return o;
+      updatedOrder = Object.assign({}, o, patch);
+      return updatedOrder;
+    });
+    render(); // optimistic
+    if (!updatedOrder) return Promise.resolve();
+    return upsertOrderRow(updatedOrder);
+  }
+
+  function deleteOrder(id) {
+    var existing = state.orders.filter(function (o) { return o.id === id; })[0];
+    var shouldSoftDelete = existing && existing.priority === "OUTPATIENT" && existing.printedAt;
+    if (shouldSoftDelete) {
+      // Soft delete: mark as deleted rather than removing the row, so admin can
+      // restore it if it was removed by mistake. Kept for 1 week after appointment date.
+      return updateOrder(id, { deletedAt: nowISO(), deletedBy: state.session.name }).then(function () {
+        showToast("Order moved to deleted — admin can restore it within a week");
+      });
+    }
+    state.orders = state.orders.filter(function (o) { return o.id !== id; });
+    render(); // optimistic
+    var p = deleteOrderRow(id);
+    showToast("Order removed");
+    return p;
+  }
+
+  function askToSend(id) {
+    var existing = state.orders.filter(function (o) { return o.id === id; })[0];
+    var isOutpatient = existing && existing.priority === "OUTPATIENT";
+    updateOrder(id, {
+      status: "ASKED_TO_SEND",
+      askedToSendAt: nowISO(),
+      tech: state.session.name
+    });
+    showToast(isOutpatient ? "Marked as arrived" : "Marked as asked to send patient");
+  }
+
+  function markDone(id) {
+    updateOrder(id, {
+      status: "DONE",
+      doneAt: nowISO(),
+      tech: state.session.name
+    });
+    showToast("Marked as done");
+  }
+
+  function printPatientInstructions(order) {
+    var instr = SHARED_INSTRUCTIONS;
+    var enItems = instr.en.map(function (line) { return "<li>" + escapeHtml(line) + "</li>"; }).join("");
+    var arItems = instr.ar.map(function (line) { return "<li>" + escapeHtml(line) + "</li>"; }).join("");
+    var logoHtml = LOGO_DATA_URL ? '<img class="logo" src="' + LOGO_DATA_URL + '" alt="Logo" />' : '<div class="logo-placeholder"></div>';
+
+    // Day name in English and Arabic, derived from the appointment date.
+    var dayNameEn = "—";
+    var dayNameAr = "—";
+    var DAYS_AR = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+    if (order.appointmentDate) {
+      var d = new Date(order.appointmentDate + "T00:00:00");
+      dayNameEn = d.toLocaleDateString("en-US", { weekday: "long" });
+      dayNameAr = DAYS_AR[d.getDay()];
+    }
+
+    // Appointment time formatted for printing.
+    var apptTimeFmt = "—";
+    if (order.appointmentTime) {
+      var parts = order.appointmentTime.split(":");
+      var td = new Date();
+      td.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+      apptTimeFmt = td.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    }
+
+    var html =
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Patient Instructions — ' + escapeHtml(order.fileNumber) + '</title>' +
+      '<style>' +
+      'body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:24px;color:#1A1D22;}' +
+      '.sheet{max-width:760px;margin:0 auto;}' +
+      '.head{display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:2px solid #1A1D22;padding-bottom:12px;margin-bottom:18px;}' +
+      '.head .title{flex:1;text-align:center;font-size:20px;font-weight:700;direction:rtl;font-family:"Tahoma","Arial",sans-serif;}' +
+      '.head .logo{max-height:56px;max-width:140px;object-fit:contain;flex-shrink:0;}' +
+      '.head .logo-placeholder{width:1px;height:56px;flex-shrink:0;}' +
+      '.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;font-size:13px;margin-bottom:20px;border:1px solid #ccc;border-radius:6px;padding:12px 16px;}' +
+      '.meta div span.k{font-weight:700;display:inline-block;min-width:120px;}' +
+      '.cols{display:flex;gap:24px;}' +
+      '.col{flex:1;border:1px solid #ccc;border-radius:6px;padding:14px 16px;}' +
+      '.col h2{font-size:14px;margin:0 0 10px;border-bottom:1px solid #ddd;padding-bottom:6px;}' +
+      '.col.ar{direction:rtl;text-align:right;font-family:"Tahoma","Arial",sans-serif;}' +
+      'ul{margin:0;padding-left:18px;font-size:13px;line-height:1.6;}' +
+      '.col.ar ul{padding-left:0;padding-right:18px;}' +
+      '.footer{margin-top:20px;font-size:11px;color:#777;text-align:center;}' +
+      '@media print{body{padding:0;} .no-print{display:none;}}' +
+      '</style></head><body>' +
+      '<div class="sheet">' +
+        '<div class="head">' +
+          logoHtml +
+          '<div class="title">بطاقة موعد اشعة مقطعية</div>' +
+          logoHtml +
+        '</div>' +
+        '<div class="meta">' +
+          '<div><span class="k">Patient name:</span>' + escapeHtml(order.patientName || "—") + '</div>' +
+          '<div><span class="k">اسم المريض:</span>' + escapeHtml(order.patientName || "—") + '</div>' +
+          '<div><span class="k">File number:</span>' + escapeHtml(order.fileNumber) + '</div>' +
+          '<div><span class="k">رقم الملف:</span>' + escapeHtml(order.fileNumber) + '</div>' +
+          '<div><span class="k">Study / protocol:</span>' + escapeHtml(order.protocol) + '</div>' +
+          '<div><span class="k">الفحص:</span>' + escapeHtml(order.protocol) + '</div>' +
+          '<div><span class="k">Day:</span>' + escapeHtml(dayNameEn) + '</div>' +
+          '<div><span class="k">اليوم:</span>' + escapeHtml(dayNameAr) + '</div>' +
+          '<div><span class="k">Appointment date:</span>' + escapeHtml(order.appointmentDate || "—") + '</div>' +
+          '<div><span class="k">تاريخ الموعد:</span>' + escapeHtml(order.appointmentDate || "—") + '</div>' +
+          '<div><span class="k">Appointment time:</span>' + escapeHtml(apptTimeFmt) + '</div>' +
+          '<div><span class="k">وقت الموعد:</span>' + escapeHtml(apptTimeFmt) + '</div>' +
+          '<div><span class="k">Referring dept.:</span>' + escapeHtml(order.referringDept) + '</div>' +
+          '<div><span class="k">القسم المحوّل:</span>' + escapeHtml(order.referringDept) + '</div>' +
+        '</div>' +
+        '<div class="cols">' +
+          '<div class="col en"><h2>Instructions</h2><ul>' + enItems + '</ul></div>' +
+          '<div class="col ar"><h2>التعليمات</h2><ul>' + arItems + '</ul></div>' +
+        '</div>' +
+        '<div class="footer">Printed ' + escapeHtml(fmtTime(nowISO())) + ' · CT Worklist</div>' +
+      '</div>' +
+      '<script>window.onload = function(){ window.print(); };</' + 'script>' +
+      '</body></html>';
+
+    var win = window.open("", "_blank");
+    if (!win) {
+      showToast("Pop-up blocked — allow pop-ups to print instructions.");
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  }
+
+  // ---------- Filtering / sorting ----------
+
+  function getFiltered() {
+    var list = state.orders.filter(function (o) { return !o.deletedAt; }); // always hide soft-deleted from regular view
+    if (state.filterPriority !== "ALL") list = list.filter(function (o) { return o.priority === state.filterPriority; });
+    if (state.filterStatus === "ACTIVE") {
+      list = list.filter(function (o) { return o.status !== "DONE"; });
+    } else if (state.filterStatus !== "ALL") {
+      list = list.filter(function (o) { return o.status === state.filterStatus; });
+    }
+    var isSearching = state.search.trim().length > 0;
+    if (!isSearching && state.viewDate) {
+      list = list.filter(function (o) { return orderDisplayDate(o) === state.viewDate; });
+    }
+    if (isSearching) {
+      var q = state.search.trim().toLowerCase();
+      list = list.filter(function (o) {
+        return (o.fileNumber || "").toLowerCase().indexOf(q) !== -1 ||
+          (o.patientName || "").toLowerCase().indexOf(q) !== -1 ||
+          (o.protocol || "").toLowerCase().indexOf(q) !== -1 ||
+          (o.referringDept || "").toLowerCase().indexOf(q) !== -1 ||
+          (o.tech || "").toLowerCase().indexOf(q) !== -1 ||
+          (o.radiologist || "").toLowerCase().indexOf(q) !== -1;
+      });
+    }
+    var prioRank = { ER: 0, INPATIENT: 1, OUTPATIENT: 2 };
+    var statusRank = { SCHEDULED: 0, ASKED_TO_SEND: 1, DONE: 2 };
+    list.sort(function (a, b) {
+      var sr = statusRank[a.status] - statusRank[b.status];
+      if (sr !== 0) return sr;
+      var pr = prioRank[a.priority] - prioRank[b.priority];
+      if (pr !== 0) return pr;
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+    return list;
+  }
+
+  // ---------- Rendering ----------
+
+  function renderCounts() {
+    var active = state.orders.filter(function (o) { return o.status !== "DONE"; });
+    var counts = {
+      ER: active.filter(function (o) { return o.priority === "ER"; }).length,
+      INPATIENT: active.filter(function (o) { return o.priority === "INPATIENT"; }).length,
+      OUTPATIENT: active.filter(function (o) { return o.priority === "OUTPATIENT"; }).length,
+      awaitingSend: active.filter(function (o) { return o.status === "SCHEDULED"; }).length
+    };
+    countPills.innerHTML =
+      pillHtml("ER", counts.ER, PRIORITY.ER.color, PRIORITY.ER.bg) +
+      pillHtml("Inpatient", counts.INPATIENT, PRIORITY.INPATIENT.color, PRIORITY.INPATIENT.bg) +
+      pillHtml("Outpatient", counts.OUTPATIENT, PRIORITY.OUTPATIENT.color, PRIORITY.OUTPATIENT.bg) +
+      pillHtml("Awaiting send", counts.awaitingSend, STATUS.SCHEDULED.color, STATUS.SCHEDULED.bg);
+  }
+  function pillHtml(label, value, color, bg) {
+    return '<div class="pill" style="background:' + bg + ';color:' + color + '">' +
+      '<span class="val">' + value + '</span><span class="lbl">' + label + '</span></div>';
+  }
+
+  function renderList() {
+    var filtered = getFiltered();
+    var outpatientOrders = filtered.filter(function (o) { return o.priority === "OUTPATIENT"; });
+    var otherOrders = filtered.filter(function (o) { return o.priority !== "OUTPATIENT"; });
+
+    outpatientEmpty.classList.toggle("hidden", outpatientOrders.length !== 0);
+    outpatientList.innerHTML = outpatientOrders.length ? timeSlotGridHtml(outpatientOrders) : "";
+
+    erInpatientEmpty.classList.toggle("hidden", otherOrders.length !== 0);
+    erInpatientTableHead.classList.toggle("hidden", otherOrders.length === 0);
+    erInpatientList.innerHTML = otherOrders.map(rowHtml).join("");
+  }
+
+  // Builds the fixed 10-minute time-slot table for outpatient orders. Only slots that
+  // actually have at least one order are shown, rather than all 144 slots in a day, to
+  // keep this usable rather than mostly empty rows.
+  function timeSlotGridHtml(outpatientOrders) {
+    var bySlot = {};
+    outpatientOrders.forEach(function (o) {
+      var slot = o.appointmentTime || "—";
+      if (!bySlot[slot]) bySlot[slot] = [];
+      bySlot[slot].push(o);
+    });
+    var usedSlots = Object.keys(bySlot).sort(function (a, b) {
+      if (a === "—") return 1;
+      if (b === "—") return -1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
+
+    var rows = usedSlots.map(function (slot) {
+      var ordersInSlot = bySlot[slot];
+      var slotLabel = slot === "—" ? "No time set" : fmtTimeLabel(slot);
+      return '<div class="slot-group">' +
+        '<div class="slot-time">' + slotLabel + '</div>' +
+        '<div class="slot-orders">' + ordersInSlot.map(rowHtml).join("") + '</div>' +
+      '</div>';
+    }).join("");
+
+    return '<div class="time-slot-section">' + rows + '</div>';
+  }
+
+  function fmtTimeLabel(hhmm) {
+    var parts = hhmm.split(":");
+    var d = new Date();
+    d.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  // Shows the tech how many outpatient appointments are already booked on the date they're
+  // scheduling for, plus a quick breakdown by time slot, so they can see the day's load
+  // before picking a time.
+  function updateDateLoadSummary() {
+    if (state.formPriority !== "OUTPATIENT" || !appointmentDateInput.value) {
+      dateLoadSummary.classList.add("hidden");
+      return;
+    }
+    var date = appointmentDateInput.value;
+    var excludeId = state.editingId; // don't count the order being edited against itself
+    var sameDay = state.orders.filter(function (o) {
+      return o.priority === "OUTPATIENT" && o.appointmentDate === date && o.id !== excludeId;
+    });
+
+    if (!sameDay.length) {
+      dateLoadSummary.classList.remove("hidden");
+      dateLoadSummary.innerHTML = '<div class="date-load-summary"><div class="total">No outpatient appointments booked yet on this date.</div></div>';
+      return;
+    }
+
+    var bySlot = {};
+    sameDay.forEach(function (o) {
+      var slot = o.appointmentTime || "—";
+      bySlot[slot] = (bySlot[slot] || 0) + 1;
+    });
+    var slots = Object.keys(bySlot).sort(function (a, b) {
+      if (a === "—") return 1;
+      if (b === "—") return -1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
+    var breakdown = slots.map(function (slot) {
+      var label = slot === "—" ? "No time set" : fmtTimeLabel(slot);
+      return '<div><span class="slot">' + escapeHtml(label) + '</span> — ' + bySlot[slot] + (bySlot[slot] === 1 ? " patient" : " patients") + '</div>';
+    }).join("");
+
+    dateLoadSummary.classList.remove("hidden");
+    dateLoadSummary.innerHTML =
+      '<div class="date-load-summary">' +
+        '<div class="total">' + sameDay.length + (sameDay.length === 1 ? " outpatient appointment" : " outpatient appointments") + ' already booked on this date</div>' +
+        '<div class="breakdown">' + breakdown + '</div>' +
+      '</div>';
+  }
+
+  function timelineHtml(order) {
+    var scheduledBy = order.priority === "OUTPATIENT" ? order.tech : order.radiologist;
+    var askedToSendLabel = order.priority === "OUTPATIENT" ? "Arrived" : "Asked to send patient";
+    var steps = [
+      { key: "scheduledAt", label: "Scheduled", who: scheduledBy },
+      { key: "askedToSendAt", label: askedToSendLabel, who: order.tech },
+      { key: "doneAt", label: "Done", who: order.tech }
+    ];
+    return '<div class="timeline">' + steps.map(function (s) {
+      var ts = order[s.key];
+      var doneClass = ts ? "done" : "pending";
+      var detail = ts ? (fmtTime(ts) + (s.who ? " · " + escapeHtml(s.who) : "")) : "Not yet";
+      return '<div class="timeline-step ' + doneClass + '">' +
+        '<div class="timeline-dot"></div>' +
+        '<div><div class="timeline-label">' + s.label + '</div>' +
+        '<div class="timeline-detail">' + detail + '</div></div></div>';
+    }).join("") + '</div>';
+  }
+
+  function rowHtml(order) {
+    if (!state.session) return ""; // nothing should be rendering the worklist without an active session, but guard anyway
+    var prio = PRIORITY[order.priority];
+    var stat = STATUS[order.status];
+    var wait = minutesAgo(order.createdAt);
+    var wColor = waitColor(wait, order.priority);
+    var isOutpatientScheduled = order.priority === "OUTPATIENT" && order.appointmentDate;
+    var expanded = state.expandedId === order.id;
+    var role = state.session.role;
+
+    var metaHtml = isOutpatientScheduled
+      ? "Appointment " + escapeHtml(order.appointmentDate)
+      : "Ordered " + fmtTime(order.createdAt) + ' · <span style="color:' + wColor + ';font-weight:600">' + wait + "m ago</span>";
+
+    var notesHtml = order.notes
+      ? '<div class="notes-block"><span class="notes-label">Clinical notes:</span> ' + escapeHtml(order.notes) + '</div>'
+      : "";
+
+    var actionHtml = "";
+    if (role === "TECH") {
+      if (order.status === "SCHEDULED") {
+        var actionLabel = order.priority === "OUTPATIENT" ? "Arrived" : "Ask to send patient";
+        actionHtml = '<div class="action-row"><button type="button" class="btn-stage" data-action="ask-send" data-id="' + order.id + '">' + actionLabel + '</button></div>';
+      } else if (order.status === "ASKED_TO_SEND") {
+        actionHtml = '<div class="action-row"><button type="button" class="btn-stage green" data-action="mark-done" data-id="' + order.id + '">Mark done</button></div>';
+      }
+      if (order.priority === "OUTPATIENT") {
+        actionHtml += '<div class="action-row"><button type="button" class="btn-stage outline" data-action="print-instructions" data-id="' + order.id + '">🖨 Print patient instructions</button></div>';
+      }
+    }
+
+    var editDeleteHtml = "";
+    var canFullyManage = (role === "RADIOLOGIST" && order.priority !== "OUTPATIENT") ||
+                          (role === "TECH" && order.priority === "OUTPATIENT");
+    var canEditOnly = role === "RADIOLOGIST" && order.priority === "OUTPATIENT";
+
+    if (canFullyManage) {
+      editDeleteHtml = '<div class="row-actions">' +
+        '<button type="button" class="btn-small" data-action="edit" data-id="' + order.id + '">Edit order</button>' +
+        '<button type="button" class="btn-small danger" data-action="delete" data-id="' + order.id + '">Remove</button>' +
+        '</div>';
+    } else if (canEditOnly) {
+      editDeleteHtml = '<div class="row-actions">' +
+        '<button type="button" class="btn-small" data-action="edit" data-id="' + order.id + '">Edit order</button>' +
+        '</div>';
+    }
+
+    var isProtocoled = order.needsProtocoling && !!order.protocolText;
+    var isPendingProtocol = order.needsProtocoling && !order.protocolText;
+    var needsProtocolingToday = isPendingProtocol && order.appointmentDate === todayISODate();
+
+    var protocolingBadgeHtml = "";
+    if (isProtocoled) {
+      protocolingBadgeHtml = '<span class="protocoling-badge protocoled" title="Protocol submitted">✓ Protocoled</span>';
+    } else if (isPendingProtocol) {
+      protocolingBadgeHtml = '<span class="protocoling-badge" title="Flagged for protocoling review">🏷 Protocoling</span>';
+    }
+
+    var protocolingBannerHtml = (needsProtocolingToday && role === "RADIOLOGIST")
+      ? '<div class="protocoling-banner">🏷 Needs protocoling — appointment is today, please review before the scan.</div>'
+      : "";
+
+    if (role === "RADIOLOGIST" && isPendingProtocol) {
+      actionHtml += '<div class="action-row"><button type="button" class="btn-stage outline" data-action="write-protocol" data-id="' + order.id + '">📝 Write protocol</button></div>';
+    }
+
+    var protocolTextHtml = order.protocolText
+      ? '<div class="notes-block"><span class="notes-label">Protocol' + (order.protocoledBy ? " — " + escapeHtml(order.protocoledBy) : "") + ':</span> ' + escapeHtml(order.protocolText) + '</div>'
+      : "";
+
+    return (
+      '<div class="order-row' + (expanded ? ' expanded' : '') + '" data-id="' + order.id + '">' +
+        '<div class="row-main" data-action="toggle" data-id="' + order.id + '">' +
+          '<div class="cell cell-priority"><span class="badge" style="color:' + prio.color + ';background:' + prio.bg + '">' + prio.label + '</span></div>' +
+          '<div class="cell cell-file" data-label="File #"><span class="cell-value" style="font-weight:600;font-family:var(--mono)">' + escapeHtml(order.fileNumber) + '</span></div>' +
+          '<div class="cell cell-protocol">' +
+            '<div class="protocol-text-row">' +
+              '<span class="protocol-text">' + escapeHtml(order.protocol) + '</span>' +
+              protocolingBadgeHtml +
+            '</div>' +
+            (order.patientName ? '<div class="patient-name-text">' + escapeHtml(order.patientName) + '</div>' : '') +
+            '<div class="meta-text">' + metaHtml + '</div>' +
+          '</div>' +
+          '<div class="cell cell-dept" data-label="Referring"><span class="cell-value" style="color:#3A3F4B">' + escapeHtml(order.referringDept) + '</span></div>' +
+          '<div class="cell cell-status" data-label="Status"><span class="badge" style="color:' + stat.color + ';background:' + stat.bg + '">' + statusLabelFor(order.status, order.priority) + '</span></div>' +
+          '<div class="cell cell-tech" data-label="Tech"><span class="cell-value" style="color:' + (order.tech ? "#1A1D22" : "#A7ABB3") + '">' + escapeHtml(order.tech || "—") + '</span></div>' +
+          '<div class="cell cell-rad" data-label="Radiologist"><span class="cell-value" style="color:' + (order.radiologist ? "#1A1D22" : "#A7ABB3") + '">' + escapeHtml(order.radiologist || "—") + '</span></div>' +
+          '<div class="cell cell-chevron"><span class="chevron">' + (expanded ? "▲" : "▼") + '</span></div>' +
+        '</div>' +
+        protocolingBannerHtml +
+        '<div class="expand-panel">' +
+          protocolTextHtml +
+          notesHtml +
+          timelineHtml(order) +
+          actionHtml +
+          editDeleteHtml +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderDayNav() {
+    dayNavLabel.textContent = fmtDayLabel(state.viewDate);
+    dayDatePicker.value = state.viewDate;
+    todayBtn.classList.toggle("hidden", state.viewDate === todayISODate());
+  }
+
+  function render() {
+    renderCounts();
+    renderList();
+    renderDayNav();
+  }
+
+  // ---------- Event delegation for order list ----------
+
+  function handleOrderListClick(e) {
+    var actionEl = e.target.closest("[data-action]");
+    if (!actionEl) return;
+    var action = actionEl.getAttribute("data-action");
+    var id = actionEl.getAttribute("data-id");
+
+    if (action === "toggle") {
+      state.expandedId = state.expandedId === id ? null : id;
+      render();
+    } else if (action === "ask-send") {
+      askToSend(id);
+    } else if (action === "mark-done") {
+      markDone(id);
+    } else if (action === "print-instructions") {
+      var orderToPrint = state.orders.filter(function (o) { return o.id === id; })[0];
+      if (orderToPrint) {
+        printPatientInstructions(orderToPrint);
+        // Stamp when instructions were first printed, so delete knows to soft-delete
+        // instead of hard-delete if this outpatient order gets removed by mistake.
+        if (!orderToPrint.printedAt) {
+          updateOrder(id, { printedAt: nowISO() });
+        }
+      }
+    } else if (action === "write-protocol") {
+      var orderToProtocol = state.orders.filter(function (o) { return o.id === id; })[0];
+      if (orderToProtocol) openProtocolModal(orderToProtocol);
+    } else if (action === "edit") {
+      var order = state.orders.filter(function (o) { return o.id === id; })[0];
+      if (order) openForm(order);
+    } else if (action === "delete") {
+      var target = state.orders.filter(function (o) { return o.id === id; })[0];
+      if (!target) return;
+      var isSoftDelete = target.priority === "OUTPATIENT" && target.printedAt;
+      var confirmMsg = isSoftDelete
+        ? "Remove order for file #" + target.fileNumber + "? Since instructions were already printed, the order will be kept in the admin's deleted view for one week in case this was a mistake."
+        : "Remove order for file #" + target.fileNumber + "? This cannot be undone.";
+      if (window.confirm(confirmMsg)) {
+        deleteOrder(id);
+      }
+    }
+  }
+  outpatientList.addEventListener("click", handleOrderListClick);
+  erInpatientList.addEventListener("click", handleOrderListClick);
+
+  // ---- Protocol submission modal ----
+
+  var protocolModalOrderId = null;
+
+  function openProtocolModal(order) {
+    protocolModalOrderId = order.id;
+    protocolFormError.classList.add("hidden");
+    protocolTextInput.value = order.protocolText || "";
+    protocolModalContext.textContent = "File #" + order.fileNumber + (order.patientName ? " — " + order.patientName : "") + " · " + order.protocol + (order.appointmentDate ? " · " + order.appointmentDate : "");
+    protocolModalOverlay.classList.remove("hidden");
+    protocolTextInput.focus();
+  }
+  function closeProtocolModal() {
+    protocolModalOverlay.classList.add("hidden");
+    protocolModalOrderId = null;
+  }
+
+  protocolModalClose.addEventListener("click", closeProtocolModal);
+  protocolCancelBtn.addEventListener("click", closeProtocolModal);
+  protocolModalOverlay.addEventListener("click", function (e) { if (e.target === protocolModalOverlay) closeProtocolModal(); });
+
+  protocolForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var text = protocolTextInput.value.trim();
+    if (!text) {
+      protocolFormError.textContent = "Enter the protocol before submitting.";
+      protocolFormError.classList.remove("hidden");
+      return;
+    }
+    if (!protocolModalOrderId) return;
+    updateOrder(protocolModalOrderId, {
+      protocolText: text,
+      protocoledBy: state.session.name,
+      protocoledAt: nowISO()
+    }).then(function () {
+      showToast("Protocol submitted");
+      closeProtocolModal();
+    });
+  });
+
+  // ---------- Top-level event wiring ----------
+
+  loginForm.addEventListener("submit", attemptLogin);
+  logoutBtn.addEventListener("click", logout);
+
+  newOrderBtn.addEventListener("click", function () { openForm(null); });
+  modalClose.addEventListener("click", closeForm);
+  cancelBtn.addEventListener("click", closeForm);
+  modalOverlay.addEventListener("click", function (e) { if (e.target === modalOverlay) closeForm(); });
+  orderForm.addEventListener("submit", submitForm);
+  protocolSelect.addEventListener("change", handleProtocolChange);
+  appointmentTimeInput.addEventListener("change", function () {
+    appointmentTimeInput.value = snapToTenMinutes(appointmentTimeInput.value);
+  });
+  appointmentDateInput.addEventListener("change", updateDateLoadSummary);
+  appointmentDateInput.addEventListener("input", updateDateLoadSummary);
+
+  Array.prototype.forEach.call(priorityToggle.children, function (btn) {
+    btn.addEventListener("click", function () { setFormPriority(btn.getAttribute("data-priority")); });
+  });
+
+  searchInput.addEventListener("input", function () { state.search = searchInput.value; renderList(); });
+  statusSelect.addEventListener("change", function () { state.filterStatus = statusSelect.value; renderList(); });
+
+  prevDayBtn.addEventListener("click", function () {
+    state.viewDate = shiftISODate(state.viewDate, -1);
+    render();
+  });
+  nextDayBtn.addEventListener("click", function () {
+    state.viewDate = shiftISODate(state.viewDate, 1);
+    render();
+  });
+  todayBtn.addEventListener("click", function () {
+    state.viewDate = todayISODate();
+    render();
+  });
+  dayDatePicker.addEventListener("change", function () {
+    if (dayDatePicker.value) {
+      state.viewDate = dayDatePicker.value;
+      render();
+    }
+  });
+  Array.prototype.forEach.call(priorityFilterGroup.children, function (btn) {
+    btn.addEventListener("click", function () {
+      state.filterPriority = btn.getAttribute("data-priority");
+      Array.prototype.forEach.call(priorityFilterGroup.children, function (b) { b.classList.toggle("active", b === btn); });
+      renderList();
+    });
+  });
+
+  // periodic refresh: pull latest shared data from the server so multiple
+  // devices stay roughly in sync, re-render wait timers, purge expired orders.
+  // Supabase responds much faster than the old Apps Script backend, so polling
+  // more often here doesn't cost the sluggishness it used to.
+  setInterval(function () {
+    if (!state.session || state.session.role === "ADMIN") return; // nothing to poll before login, or while on the admin dashboard
+    if (!modalOverlay.classList.contains("hidden")) return; // don't yank data out from under an open form
+    fetchOrdersFromServer().then(function (list) {
+      purgeExpiredOnServer(list); // actually delete old rows server-side
+      var purged = purgeExpired(list); // filter what's shown locally right now
+      state.orders = purged;
+      render();
+    });
+  }, 10000);
+
+  // ---------- Init ----------
+
+  function init() {
+    populateProtocols();
+    populateDepartments();
+    state.viewDate = todayISODate();
+
+    // Load shared staff lists, instruction templates, and the logo before anything else, since
+    // the login screen, worklist, and printed sheets all depend on them.
+    Promise.all([fetchRadiologists(), fetchTechs(), fetchInstructions(), fetchLogo()]).then(function (results) {
+      RADIOLOGISTS = Array.isArray(results[0]) ? results[0] : [];
+      TECHS = Array.isArray(results[1]) ? results[1] : [];
+      SHARED_INSTRUCTIONS = (results[2] && results[2].en && results[2].ar) ? results[2] : SHARED_INSTRUCTIONS;
+      LOGO_DATA_URL = (typeof results[3] === "string") ? results[3] : "";
+
+      populateLoginNames();
+
+      state.session = loadSession();
+      if (state.session) {
+        state.loginRole = state.session.role;
+        if (state.session.role === "ADMIN") {
+          showAdminShell();
+          return;
+        }
+        showAppShell();
+        fetchOrdersFromServer().then(function (list) {
+          state.orders = list;
+          render();
+        });
+      }
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
