@@ -2940,6 +2940,20 @@
     showToast("Marked as no-show");
   }
 
+  // Lets a tech bring a no-show patient back into the active workflow if they turn up later,
+  // any time within the 7-day no-show recovery window before the order hard-deletes.
+  // Moves it straight to Arrived (same as the normal Arrived step) and re-dates it to today so
+  // it shows up on today's worklist instead of staying pinned to the missed appointment day.
+  function startNoShowPatient(id) {
+    updateOrder(id, {
+      status: "ASKED_TO_SEND",
+      appointmentDate: todayISODate(),
+      askedToSendAt: nowISO(),
+      tech: state.session.name
+    });
+    showToast("Patient started — moved to today's worklist");
+  }
+
   function printPatientInstructions(order) {
     var instr = order.contrastEnhanced ? SHARED_INSTRUCTIONS.contrast : SHARED_INSTRUCTIONS.nonContrast;
     var enItems = instr.en.map(function (line) { return "<li>" + escapeHtml(line) + "</li>"; }).join("");
@@ -3139,6 +3153,7 @@
     });
     noShowSection.classList.toggle("hidden", noShows.length === 0);
     noShowCount.textContent = noShows.length;
+    var canStart = state.session.role === "TECH";
     noShowList.innerHTML = noShows.map(function (o) {
       var now = Date.now();
       var daysLeft = o.noShowAt
@@ -3154,6 +3169,9 @@
         '</div>' +
         '<div class="ns-warning">This patient did not attend their appointment.</div>' +
         '<div class="ns-expiry">Removed in ' + daysLeft + (daysLeft === 1 ? ' day' : ' days') + '</div>' +
+        (canStart
+          ? '<div class="action-row" style="margin-top:8px;"><button type="button" class="btn-stage" data-action="start-no-show" data-id="' + o.id + '">Start — patient showed up</button></div>'
+          : '') +
       '</div>';
     }).join("");
   }
@@ -3428,6 +3446,8 @@
       markDone(id);
     } else if (action === "mark-no-show") {
       markNoShow(id);
+    } else if (action === "start-no-show") {
+      startNoShowPatient(id);
     } else if (action === "print-instructions") {
       var orderToPrint = state.orders.filter(function (o) { return o.id === id; })[0];
       if (orderToPrint) {
@@ -3460,6 +3480,7 @@
   erList.addEventListener("click", handleOrderListClick);
   inpatientList.addEventListener("click", handleOrderListClick);
   doneList.addEventListener("click", handleOrderListClick);
+  noShowList.addEventListener("click", handleOrderListClick);
 
   var doneListExpanded = false;
   doneToggleBtn.addEventListener("click", function () {
