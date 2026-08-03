@@ -192,6 +192,7 @@
   .no-show-card:last-child { border-bottom: none; }
   .no-show-card .ns-protocol { font-weight: 700; margin-bottom: 3px; }
   .no-show-card .ns-meta { font-size: 12px; color: var(--sub); }
+  .no-show-card .ns-warning { font-size: 12px; font-weight: 600; color: #6B21A8; margin-top: 4px; }
   .no-show-card .ns-expiry { font-size: 11px; color: var(--faint); margin-top: 3px; }
   .board-column .table-head { padding: 0 6px 8px; }
   .board-column .empty-state { margin: 10px; }
@@ -225,6 +226,12 @@
   /* Desktop column widths, shared between header row and data rows */
   .cell-priority { flex: 0 0 88px; }
   .cell-file { flex: 0 0 130px; }
+  .cell-file-inner { display: flex; align-items: center; gap: 4px; }
+  .copy-file-btn {
+    border: none; background: transparent; cursor: pointer; padding: 2px 4px; font-size: 12px;
+    line-height: 1; border-radius: 4px; opacity: 0.55; flex: 0 0 auto;
+  }
+  .copy-file-btn:hover { opacity: 1; background: var(--hover, #F0F1F4); }
   .cell-protocol { flex: 1 1 260px; }
   .cell-dept { flex: 0 0 160px; }
   .cell-status { flex: 0 0 150px; }
@@ -739,6 +746,14 @@
           <span class="field-hint">Once this many contrast-enhanced studies are booked for a day, further contrast bookings for that date are blocked. Leave blank for no limit.</span>
         </div>
 
+        <div class="field">
+          <label class="checkbox-field">
+            <input type="checkbox" id="preventDoubleBooking" />
+            <span>Prevent double-booking the same appointment slot</span>
+          </label>
+          <span class="field-hint">When on, once a time slot is booked for a date it no longer appears as an option for other patients on that same date.</span>
+        </div>
+
         <div id="schedulingSettingsError" class="error-text hidden"></div>
 
         <div class="modal-actions" style="justify-content:flex-start;">
@@ -823,6 +838,20 @@
           </div>
           <div id="customDeptError" class="error-text hidden"></div>
           <div id="customDeptList" class="staff-list" style="margin-top:10px;"></div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head"><h2>Departments available on order form</h2></div>
+          <p class="field-hint" style="margin-bottom:10px;">
+            Choose which referring departments show up when creating an order. Unchecking a
+            department here just hides it from the picker — existing orders that already use it
+            are unaffected.
+          </p>
+          <div id="enabledDepartmentsChecklist" class="protocol-checklist"></div>
+          <div id="deptSettingsError" class="error-text hidden"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" id="saveEnabledDeptsBtn" class="btn-submit">Save available departments</button>
+          </div>
         </div>
 
         <div class="admin-card">
@@ -1112,7 +1141,7 @@
   var SCHEDULING_SETTINGS = {
     bookingWindowDays: 30, dailyContrastLimit: null, enabledProtocols: null, techErInpatientProtocols: null,
     workStart: DEFAULT_WORK_START, workEnd: DEFAULT_WORK_END, protocolLabels: null, customProtocols: null,
-    departmentLabels: null, customDepartments: null
+    departmentLabels: null, customDepartments: null, preventDoubleBooking: true, enabledDepartments: null
   };
   function outpatientWorkStart() { return SCHEDULING_SETTINGS.workStart || DEFAULT_WORK_START; }
   function outpatientWorkEnd() { return SCHEDULING_SETTINGS.workEnd || DEFAULT_WORK_END; }
@@ -1143,6 +1172,15 @@
     var overrides = SCHEDULING_SETTINGS.departmentLabels;
     if (overrides && overrides[canonicalName]) return overrides[canonicalName];
     return canonicalName;
+  }
+  // Which departments currently show up on the order form — same enabled/disabled pattern as
+  // activeEnabledProtocols() above. null/empty enabledDepartments means "show the whole catalog".
+  function activeEnabledDepartments() {
+    var catalog = allDepartmentNames();
+    var configured = SCHEDULING_SETTINGS.enabledDepartments;
+    return (Array.isArray(configured) && configured.length)
+      ? catalog.filter(function (d) { return configured.indexOf(d) !== -1; })
+      : catalog.slice();
   }
 
   // Staff account lists. These are now loaded from and saved to the shared backend by the
@@ -1352,6 +1390,19 @@
     });
   }
 
+  // Outpatient orders still SCHEDULED (i.e. never marked Arrived) once their whole appointment
+  // day has passed are auto-flagged as no-shows, same as clicking the No-show button by hand —
+  // this is what surfaces the "did not attend" reminder without relying on staff to notice and
+  // mark it themselves. Only touches SCHEDULED: a patient marked Arrived (ASKED_TO_SEND) did
+  // attend, whatever happened afterward is a separate stale-order case (autoSoftDeleteStale).
+  function autoMarkNoShowStale(list) {
+    var today = todayISODate();
+    return list.filter(function (o) {
+      return !o.deletedAt && o.priority === "OUTPATIENT" && o.status === "SCHEDULED" &&
+        o.appointmentDate && o.appointmentDate < today;
+    });
+  }
+
   // ---------- Storage ----------
   //
   // Shared data now lives in a Supabase Postgres database, reached through Supabase's
@@ -1466,6 +1517,11 @@
   function syncOrdersFromServer() {
     return fetchOrdersFromServer().then(function (list) {
       purgeExpiredOnServer(list); // hard-delete rows past their retention window (fire-and-forget)
+      autoMarkNoShowStale(list).forEach(function (o) {
+        o.status = "NO_SHOW";
+        o.noShowAt = nowISO();
+        upsertOrderRow(o); // persist the auto no-show (fire-and-forget)
+      });
       autoSoftDeleteStale(list).forEach(function (o) {
         o.deletedAt = nowISO();
         o.deletedBy = "System — left unresolved";
@@ -1777,6 +1833,7 @@
   var workEndInput = document.getElementById("workEndInput");
   var workHoursHint = document.getElementById("workHoursHint");
   var dailyContrastLimitInput = document.getElementById("dailyContrastLimitInput");
+  var preventDoubleBookingInput = document.getElementById("preventDoubleBooking");
   var schedulingSettingsError = document.getElementById("schedulingSettingsError");
   var saveSchedulingSettingsBtn = document.getElementById("saveSchedulingSettingsBtn");
   var adminTabProtocols = document.getElementById("adminTabProtocols");
@@ -1796,6 +1853,9 @@
   var addCustomDeptBtn = document.getElementById("addCustomDeptBtn");
   var customDeptError = document.getElementById("customDeptError");
   var customDeptListEl = document.getElementById("customDeptList");
+  var enabledDepartmentsChecklist = document.getElementById("enabledDepartmentsChecklist");
+  var deptSettingsError = document.getElementById("deptSettingsError");
+  var saveEnabledDeptsBtn = document.getElementById("saveEnabledDeptsBtn");
   var deptRenameList = document.getElementById("deptRenameList");
   var saveDeptNamesBtn = document.getElementById("saveDeptNamesBtn");
   var adminTabBranding = document.getElementById("adminTabBranding");
@@ -2127,7 +2187,9 @@
       protocolLabels: SCHEDULING_SETTINGS.protocolLabels,
       customProtocols: SCHEDULING_SETTINGS.customProtocols,
       departmentLabels: SCHEDULING_SETTINGS.departmentLabels,
-      customDepartments: SCHEDULING_SETTINGS.customDepartments
+      customDepartments: SCHEDULING_SETTINGS.customDepartments,
+      preventDoubleBooking: SCHEDULING_SETTINGS.preventDoubleBooking,
+      enabledDepartments: SCHEDULING_SETTINGS.enabledDepartments
     };
     for (var k in partial) merged[k] = partial[k];
     return saveSchedulingSettings(merged);
@@ -2136,6 +2198,7 @@
   function populateSchedulingSettingsFields() {
     bookingWindowInput.value = SCHEDULING_SETTINGS.bookingWindowDays || 30;
     dailyContrastLimitInput.value = (SCHEDULING_SETTINGS.dailyContrastLimit != null) ? SCHEDULING_SETTINGS.dailyContrastLimit : "";
+    preventDoubleBookingInput.checked = SCHEDULING_SETTINGS.preventDoubleBooking !== false;
     workStartInput.value = outpatientWorkStart();
     workEndInput.value = outpatientWorkEnd();
     workHoursHint.textContent = "Only these hours can be picked as an outpatient appointment time. Currently " +
@@ -2165,7 +2228,10 @@
     }
     schedulingSettingsError.classList.add("hidden");
 
-    persistSchedulingSettings({ bookingWindowDays: days, dailyContrastLimit: limit, workStart: workStart, workEnd: workEnd }).then(function () {
+    persistSchedulingSettings({
+      bookingWindowDays: days, dailyContrastLimit: limit, workStart: workStart, workEnd: workEnd,
+      preventDoubleBooking: preventDoubleBookingInput.checked
+    }).then(function () {
       showToast("Scheduling settings saved");
     });
   });
@@ -2323,9 +2389,40 @@
   });
 
   // ---- Referring department management ----
-  // Same rename/add-custom pattern as protocols above, but simpler: departments aren't
-  // role-restricted, so there's no enable/disable or tech-eligibility checklist — just the
-  // catalog (built-in + admin-added) and display-name overrides.
+  // Same rename/add-custom/enable-disable pattern as protocols above, just without the
+  // tech-eligibility checklist — departments aren't role-restricted.
+
+  function renderDeptChecklist() {
+    var selected = Array.isArray(SCHEDULING_SETTINGS.enabledDepartments) && SCHEDULING_SETTINGS.enabledDepartments.length
+      ? SCHEDULING_SETTINGS.enabledDepartments
+      : allDepartmentNames();
+    enabledDepartmentsChecklist.innerHTML = allDepartmentNames().map(function (d) {
+      var checked = selected.indexOf(d) !== -1;
+      return '<label class="checkbox-field" style="padding:3px 0;">' +
+        '<input type="checkbox" data-dept="' + escapeHtml(d) + '"' + (checked ? " checked" : "") + ' />' +
+        '<span>' + escapeHtml(departmentLabel(d)) + '</span>' +
+      '</label>';
+    }).join("");
+  }
+
+  function checkedDeptsIn(container) {
+    return Array.prototype.filter.call(container.querySelectorAll("input[type=checkbox]"), function (cb) { return cb.checked; })
+      .map(function (cb) { return cb.getAttribute("data-dept"); });
+  }
+
+  saveEnabledDeptsBtn.addEventListener("click", function () {
+    var checked = checkedDeptsIn(enabledDepartmentsChecklist);
+    if (!checked.length) {
+      deptSettingsError.textContent = "Select at least one department to make available.";
+      deptSettingsError.classList.remove("hidden");
+      return;
+    }
+    deptSettingsError.classList.add("hidden");
+    persistSchedulingSettings({ enabledDepartments: checked }).then(function () {
+      showToast("Available department list saved");
+      populateDepartments();
+    });
+  });
 
   function renderDeptRenameList() {
     var overrides = SCHEDULING_SETTINGS.departmentLabels || {};
@@ -2352,9 +2449,11 @@
   }
 
   function populateDepartmentSettingsFields() {
+    renderDeptChecklist();
     renderDeptRenameList();
     renderCustomDeptList();
     customDeptError.classList.add("hidden");
+    deptSettingsError.classList.add("hidden");
   }
 
   addCustomDeptBtn.addEventListener("click", function () {
@@ -2372,9 +2471,16 @@
     }
     customDeptError.classList.add("hidden");
 
-    persistSchedulingSettings({ customDepartments: adminCustomDepartments().concat([name]) }).then(function () {
+    var partial = { customDepartments: adminCustomDepartments().concat([name]) };
+    // If the admin has already restricted the available-departments list, make the new
+    // department visible immediately too — same reasoning as adding a custom protocol.
+    if (Array.isArray(SCHEDULING_SETTINGS.enabledDepartments) && SCHEDULING_SETTINGS.enabledDepartments.length) {
+      partial.enabledDepartments = SCHEDULING_SETTINGS.enabledDepartments.concat([name]);
+    }
+    persistSchedulingSettings(partial).then(function () {
       customDeptNameInput.value = "";
       showToast("Custom department added");
+      renderDeptChecklist();
       renderDeptRenameList();
       renderCustomDeptList();
       populateDepartments();
@@ -2392,8 +2498,12 @@
       partial.departmentLabels = Object.assign({}, SCHEDULING_SETTINGS.departmentLabels);
       delete partial.departmentLabels[name];
     }
+    if (Array.isArray(SCHEDULING_SETTINGS.enabledDepartments)) {
+      partial.enabledDepartments = SCHEDULING_SETTINGS.enabledDepartments.filter(function (d) { return d !== name; });
+    }
     persistSchedulingSettings(partial).then(function () {
       showToast("Custom department removed");
+      renderDeptChecklist();
       renderDeptRenameList();
       renderCustomDeptList();
       populateDepartments();
@@ -2409,6 +2519,7 @@
     });
     persistSchedulingSettings({ departmentLabels: overrides }).then(function () {
       showToast("Department names saved");
+      renderDeptChecklist();
       renderDeptRenameList();
       renderCustomDeptList();
       populateDepartments();
@@ -2433,7 +2544,7 @@
   }
   function populateDepartments() {
     var previousValue = referringDeptSelect.value;
-    var list = allDepartmentNames();
+    var list = activeEnabledDepartments();
     referringDeptSelect.innerHTML = "";
     list.forEach(function (d) {
       var opt = document.createElement("option");
@@ -2443,14 +2554,31 @@
     referringDeptSelect.value = list.indexOf(previousValue) !== -1 ? previousValue : list[0];
   }
 
+  // Appointment times already taken on a given date — anything but a no-show counts as
+  // occupying the slot (a no-show frees it back up for another patient the same day).
+  // excludeId leaves the order currently being edited out of its own count.
+  function bookedAppointmentSlots(date, excludeId) {
+    return state.orders.filter(function (o) {
+      return o.priority === "OUTPATIENT" && o.appointmentDate === date && o.appointmentTime &&
+        o.id !== excludeId && !o.deletedAt && o.status !== "NO_SHOW";
+    }).map(function (o) { return o.appointmentTime; });
+  }
+
   // Fills the appointment-time dropdown with only the admin-configured working-hours slots —
   // nothing outside that window is ever selectable. If an order already has a time from before
   // the admin narrowed the window (a legacy booking), that one value is kept as an extra option
   // so editing the order doesn't silently move or corrupt its appointment time.
+  // When the admin's "prevent double-booking" toggle is on, slots already taken by another
+  // outpatient order on the same date are dropped from the list entirely — the tech simply
+  // can't pick a time that's already spoken for.
   function populateAppointmentTimeOptions(preserveValue) {
     var slots = outpatientTimeSlots();
     if (preserveValue && slots.indexOf(preserveValue) === -1) {
       slots = slots.concat([preserveValue]).sort();
+    }
+    if (SCHEDULING_SETTINGS.preventDoubleBooking && appointmentDateInput.value) {
+      var taken = bookedAppointmentSlots(appointmentDateInput.value, state.editingId);
+      slots = slots.filter(function (s) { return s === preserveValue || taken.indexOf(s) === -1; });
     }
     appointmentTimeInput.innerHTML = slots.map(function (s) {
       return '<option value="' + s + '">' + fmtTimeLabel(s) + '</option>';
@@ -2539,10 +2667,18 @@
     customProtocolField.classList.toggle("hidden", protocolSelect.value !== "Other / custom protocol");
     customProtocolInput.value = isKnown ? "" : (protocol || "");
 
-    populateDepartments(); // refresh in case the admin renamed/added departments this session
-    var deptList = allDepartmentNames();
+    populateDepartments(); // refresh in case the admin renamed/added/toggled departments this session
+    var deptList = activeEnabledDepartments();
     var referringDept = order ? order.referringDept : deptList[0];
-    referringDeptSelect.value = deptList.indexOf(referringDept) !== -1 ? referringDept : deptList[0];
+    // If this order already uses a department the admin has since disabled, keep it selectable
+    // as an extra option — same pattern as a legacy appointment time outside the current window —
+    // so editing the order doesn't silently move it to a different department.
+    if (referringDept && deptList.indexOf(referringDept) === -1) {
+      var deptOpt = document.createElement("option");
+      deptOpt.value = referringDept; deptOpt.textContent = departmentLabel(referringDept);
+      referringDeptSelect.appendChild(deptOpt);
+    }
+    referringDeptSelect.value = referringDept || deptList[0];
     notesField.value = order && order.notes ? order.notes : "";
 
     var isCustomProtocol = protocolSelect.value === "Other / custom protocol";
@@ -2632,6 +2768,14 @@
       // further range validation is needed here, just that something was picked.
       appointmentTime = appointmentTimeInput.value;
       if (!appointmentTime) { showFormError("Appointment time is required for outpatient studies."); return; }
+
+      if (SCHEDULING_SETTINGS.preventDoubleBooking) {
+        var takenSlots = bookedAppointmentSlots(appointmentDate, state.editingId);
+        if (takenSlots.indexOf(appointmentTime) !== -1) {
+          showFormError("That time slot (" + fmtTimeLabel(appointmentTime) + ") is already booked on " + appointmentDate + ". Choose another time.");
+          return;
+        }
+      }
 
       contrastEnhanced = !!state.formContrast;
       if (contrastEnhanced) {
@@ -2757,6 +2901,34 @@
       tech: state.session.name
     });
     showToast("Marked as done");
+  }
+
+  // Copies a file number to the clipboard via the modern Clipboard API where available,
+  // falling back to the old textarea+execCommand trick for browsers/contexts that lack it.
+  function copyTextToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand("copy"); } catch (err) {}
+    document.body.removeChild(ta);
+    return Promise.resolve();
+  }
+
+  function copyFileNumber(id) {
+    var order = state.orders.filter(function (o) { return o.id === id; })[0];
+    if (!order || !order.fileNumber) return;
+    copyTextToClipboard(order.fileNumber).then(function () {
+      showToast("File number copied");
+    }).catch(function () {
+      showToast("Couldn't copy file number");
+    });
   }
 
   function markNoShow(id) {
@@ -2980,6 +3152,7 @@
           ' · ' + escapeHtml(o.appointmentDate || '—') +
           (o.appointmentTime ? ' at ' + escapeHtml(o.appointmentTime) : '') +
         '</div>' +
+        '<div class="ns-warning">This patient did not attend their appointment.</div>' +
         '<div class="ns-expiry">Removed in ' + daysLeft + (daysLeft === 1 ? ' day' : ' days') + '</div>' +
       '</div>';
     }).join("");
@@ -3192,7 +3365,12 @@
       '<div class="order-row' + (expanded ? ' expanded' : '') + '" data-id="' + order.id + '">' +
         '<div class="row-main" data-action="toggle" data-id="' + order.id + '">' +
           '<div class="cell cell-priority"><span class="badge" style="color:' + prio.color + ';background:' + prio.bg + '">' + prio.label + '</span></div>' +
-          '<div class="cell cell-file" data-label="File #"><span class="cell-value" style="font-weight:600;font-family:var(--mono)">' + escapeHtml(order.fileNumber) + '</span></div>' +
+          '<div class="cell cell-file" data-label="File #">' +
+            '<div class="cell-file-inner">' +
+              '<span class="cell-value" style="font-weight:600;font-family:var(--mono)">' + escapeHtml(order.fileNumber) + '</span>' +
+              '<button type="button" class="copy-file-btn" data-action="copy-file-number" data-id="' + order.id + '" title="Copy file number">📋</button>' +
+            '</div>' +
+          '</div>' +
           '<div class="cell cell-protocol">' +
             '<div class="protocol-text-row">' +
               '<span class="protocol-text">' + escapeHtml(protocolLabel(order.protocol)) + '</span>' +
@@ -3242,6 +3420,8 @@
     if (action === "toggle") {
       state.expandedId = state.expandedId === id ? null : id;
       render();
+    } else if (action === "copy-file-number") {
+      copyFileNumber(id);
     } else if (action === "ask-send") {
       askToSend(id);
     } else if (action === "mark-done") {
@@ -3340,8 +3520,14 @@
   orderForm.addEventListener("submit", submitForm);
   protocolSelect.addEventListener("change", handleProtocolChange);
   customProtocolInput.addEventListener("input", handleCustomProtocolTextInput);
-  appointmentDateInput.addEventListener("change", updateDateLoadSummary);
-  appointmentDateInput.addEventListener("input", updateDateLoadSummary);
+  function handleAppointmentDateChange() {
+    // Slots taken on the old date don't apply to the new one — repopulate against the newly
+    // picked date, keeping the currently selected time if it's still free there.
+    populateAppointmentTimeOptions(appointmentTimeInput.value);
+    updateDateLoadSummary();
+  }
+  appointmentDateInput.addEventListener("change", handleAppointmentDateChange);
+  appointmentDateInput.addEventListener("input", handleAppointmentDateChange);
 
   Array.prototype.forEach.call(priorityToggle.children, function (btn) {
     btn.addEventListener("click", function () { setFormPriority(btn.getAttribute("data-priority")); });
@@ -3433,7 +3619,11 @@
           protocolLabels: (settings.protocolLabels && typeof settings.protocolLabels === "object") ? settings.protocolLabels : null,
           customProtocols: Array.isArray(settings.customProtocols) ? settings.customProtocols : null,
           departmentLabels: (settings.departmentLabels && typeof settings.departmentLabels === "object") ? settings.departmentLabels : null,
-          customDepartments: Array.isArray(settings.customDepartments) ? settings.customDepartments : null
+          customDepartments: Array.isArray(settings.customDepartments) ? settings.customDepartments : null,
+          // Defaults to on for rows saved before this setting existed — the admin can turn it
+          // off explicitly from the Scheduling tab.
+          preventDoubleBooking: settings.preventDoubleBooking !== false,
+          enabledDepartments: Array.isArray(settings.enabledDepartments) ? settings.enabledDepartments : null
         };
       }
       if (typeof logos === "string") {
