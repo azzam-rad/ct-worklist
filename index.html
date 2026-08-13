@@ -243,6 +243,10 @@
   .th { font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.4px; }
 
   .order-row { background: #fff; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+  /* ER/Inpatient orders sitting too long without action (see orderDelayLevel()) get flagged —
+     orange first, red once further overdue — so they stand out as needing attention. */
+  .order-row.delay-orange { border-color: #F2C94C; border-left: 4px solid var(--amber); background: #FFFDF5; }
+  .order-row.delay-red { border-color: #F3B4AE; border-left: 4px solid var(--red); background: #FFFAF9; }
   .row-main { display: flex; align-items: center; gap: 8px; padding: 14px 16px; cursor: pointer; }
 
   /* Desktop column widths, shared between header row and data rows */
@@ -314,6 +318,11 @@
     padding: 2px 8px; white-space: nowrap; line-height: 1.5;
   }
   .protocoling-badge.protocoled { color: #1B5E3F; background: #E5F3EC; border-color: #A7D9BE; }
+  .hold-reason-badge {
+    display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700;
+    color: #4338CA; background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 999px;
+    padding: 2px 8px; white-space: nowrap; line-height: 1.5;
+  }
   .protocoling-banner {
     font-size: 12px; font-weight: 600; color: #92400E; background: #FFFBEB;
     border-top: 1px solid #FCD34D; padding: 7px 16px;
@@ -744,6 +753,7 @@
 
     <!-- ---- SCHEDULING TAB ---- -->
     <section id="adminTabScheduling" class="admin-panel hidden">
+      <div class="admin-col-grid" style="max-width:1080px;align-items:start;">
       <div class="admin-card" style="max-width:520px;">
         <div class="admin-card-head"><h2>Outpatient scheduling</h2></div>
 
@@ -784,6 +794,45 @@
         <div class="modal-actions" style="justify-content:flex-start;">
           <button type="button" id="saveSchedulingSettingsBtn" class="btn-submit">Save settings</button>
         </div>
+      </div>
+
+      <div class="admin-card" style="max-width:520px;">
+        <div class="admin-card-head"><h2>ER/Inpatient delay alerts</h2></div>
+        <p class="field-hint" style="margin-bottom:10px;">
+          A SCHEDULED or Asked-to-send ER/Inpatient order that's sat without action longer than
+          these thresholds gets flagged on the worklist — orange first, red once further overdue —
+          so it stands out as needing attention. The clock resets whenever a tech acts on it
+          (asks to send, or sets/changes a delay reason).
+        </p>
+
+        <div class="field" style="display:flex;gap:14px;">
+          <div style="flex:1;">
+            <label for="erDelayOrangeInput">ER — orange after (minutes)</label>
+            <input id="erDelayOrangeInput" type="number" min="1" max="1440" class="input" />
+          </div>
+          <div style="flex:1;">
+            <label for="erDelayRedInput">ER — red after (minutes)</label>
+            <input id="erDelayRedInput" type="number" min="1" max="1440" class="input" />
+          </div>
+        </div>
+
+        <div class="field" style="display:flex;gap:14px;">
+          <div style="flex:1;">
+            <label for="inpatientDelayOrangeInput">Inpatient — orange after (minutes)</label>
+            <input id="inpatientDelayOrangeInput" type="number" min="1" max="1440" class="input" />
+          </div>
+          <div style="flex:1;">
+            <label for="inpatientDelayRedInput">Inpatient — red after (minutes)</label>
+            <input id="inpatientDelayRedInput" type="number" min="1" max="1440" class="input" />
+          </div>
+        </div>
+
+        <div id="delayThresholdsError" class="error-text hidden"></div>
+
+        <div class="modal-actions" style="justify-content:flex-start;">
+          <button type="button" id="saveDelayThresholdsBtn" class="btn-submit">Save thresholds</button>
+        </div>
+      </div>
       </div>
     </section>
 
@@ -926,10 +975,55 @@
 
     <!-- ---- DELETED ORDERS TAB ---- -->
     <section id="adminTabDeleted" class="admin-panel hidden">
+      <div class="admin-col-grid" style="max-width:760px;margin-bottom:16px;">
+        <div class="admin-card">
+          <div class="admin-card-head"><h2>Deleted orders retention</h2></div>
+          <p class="field-hint" style="margin-bottom:10px;">
+            Controls how long a soft-deleted order (deleted by staff, or auto-removed for
+            sitting unresolved) stays recoverable below before being permanently removed.
+          </p>
+          <div class="field">
+            <label class="checkbox-field">
+              <input type="checkbox" id="deletedOrdersAutoPurgeInput" />
+              <span>Automatically permanently delete after the recovery window</span>
+            </label>
+          </div>
+          <div class="field">
+            <label for="deletedOrdersRetentionDaysInput">Days to keep before permanent deletion</label>
+            <input id="deletedOrdersRetentionDaysInput" type="number" min="1" max="365" class="input" />
+          </div>
+          <div id="deletedRetentionError" class="error-text hidden"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" id="saveDeletedRetentionBtn" class="btn-submit">Save</button>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head"><h2>No-show retention</h2></div>
+          <p class="field-hint" style="margin-bottom:10px;">
+            Controls how long a patient stays in the "🚫 No-shows" reminder list on the worklist
+            before being permanently removed.
+          </p>
+          <div class="field">
+            <label class="checkbox-field">
+              <input type="checkbox" id="noShowAutoPurgeInput" />
+              <span>Automatically permanently delete after the no-show window</span>
+            </label>
+          </div>
+          <div class="field">
+            <label for="noShowRetentionDaysInput">Days to keep before permanent deletion</label>
+            <input id="noShowRetentionDaysInput" type="number" min="1" max="365" class="input" />
+          </div>
+          <div id="noShowRetentionError" class="error-text hidden"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" id="saveNoShowRetentionBtn" class="btn-submit">Save</button>
+          </div>
+        </div>
+      </div>
+
       <div class="admin-card">
         <div class="admin-card-head">
-          <h2>Soft-deleted outpatient orders</h2>
-          <span class="field-hint" style="font-size:12px;">Orders are permanently removed 7 days after their appointment date.</span>
+          <h2>Soft-deleted orders</h2>
         </div>
         <div id="deletedOrdersList">
           <div class="staff-empty">No deleted orders at the moment.</div>
@@ -987,6 +1081,30 @@
     <div class="modal-actions">
       <button type="button" id="protocolCancelBtn" class="btn-cancel">Cancel</button>
       <button type="submit" class="btn-submit">Submit protocol</button>
+    </div>
+  </form>
+</div>
+
+<!-- ============ "OTHER" HOLD REASON MODAL (ER/Inpatient) ============ -->
+<div id="holdReasonModalOverlay" class="modal-overlay hidden">
+  <form id="holdReasonForm" class="modal-card">
+    <div class="modal-header">
+      <span>Reason for delay</span>
+      <button type="button" id="holdReasonModalClose" class="modal-close">✕</button>
+    </div>
+
+    <div id="holdReasonModalContext" class="field-hint" style="margin-bottom:10px;"></div>
+
+    <div class="field">
+      <label for="holdReasonTextInput">Reason</label>
+      <input id="holdReasonTextInput" class="input" placeholder="e.g. Waiting on porter" />
+    </div>
+
+    <div id="holdReasonFormError" class="error-text hidden"></div>
+
+    <div class="modal-actions">
+      <button type="button" id="holdReasonCancelBtn" class="btn-cancel">Cancel</button>
+      <button type="submit" class="btn-submit">Save reason</button>
     </div>
   </form>
 </div>
@@ -1166,7 +1284,11 @@
   var SCHEDULING_SETTINGS = {
     bookingWindowDays: 30, dailyContrastLimit: null, enabledProtocols: null, techErInpatientProtocols: null,
     workStart: DEFAULT_WORK_START, workEnd: DEFAULT_WORK_END, protocolLabels: null, customProtocols: null,
-    departmentLabels: null, customDepartments: null, preventDoubleBooking: true, enabledDepartments: null
+    departmentLabels: null, customDepartments: null, preventDoubleBooking: true, enabledDepartments: null,
+    deletedOrdersAutoPurge: true, deletedOrdersRetentionDays: 7,
+    noShowAutoPurge: true, noShowRetentionDays: 7,
+    erDelayOrangeMinutes: 15, erDelayRedMinutes: 30,
+    inpatientDelayOrangeMinutes: 60, inpatientDelayRedMinutes: 120
   };
   function outpatientWorkStart() { return SCHEDULING_SETTINGS.workStart || DEFAULT_WORK_START; }
   function outpatientWorkEnd() { return SCHEDULING_SETTINGS.workEnd || DEFAULT_WORK_END; }
@@ -1256,6 +1378,37 @@
     if (mins >= t[1]) return "#B3261E";
     if (mins >= t[0]) return "#9A5B00";
     return "#5A5F6B";
+  }
+
+  // Admin-configurable "needs action" thresholds for ER/Inpatient cards (Admin > Scheduling >
+  // Delay alerts). Defaults match the wait-badge thresholds above, which were already tuned
+  // per priority (ER is far more time-sensitive than Inpatient).
+  function delayThresholds(priority) {
+    if (priority === "ER") {
+      return [SCHEDULING_SETTINGS.erDelayOrangeMinutes || 15, SCHEDULING_SETTINGS.erDelayRedMinutes || 30];
+    }
+    return [SCHEDULING_SETTINGS.inpatientDelayOrangeMinutes || 60, SCHEDULING_SETTINGS.inpatientDelayRedMinutes || 120];
+  }
+  // Unlike the wait-badge text (always time since the order was created), the delay clock
+  // resets whenever the tech acts on the order — asks to send, or sets/changes a hold reason —
+  // so the color reflects time since the LAST action, not the order's total age.
+  function lastActionAt(order) {
+    var latest = order.createdAt;
+    if (order.askedToSendAt && new Date(order.askedToSendAt) > new Date(latest)) latest = order.askedToSendAt;
+    if (order.holdReasonAt && new Date(order.holdReasonAt) > new Date(latest)) latest = order.holdReasonAt;
+    return latest;
+  }
+  // "orange" | "red" | null — null means the order doesn't need this flag (Outpatient, already
+  // Done/No-show/deleted, or simply not overdue yet).
+  function orderDelayLevel(order) {
+    if (order.priority !== "ER" && order.priority !== "INPATIENT") return null;
+    if (order.status !== "SCHEDULED" && order.status !== "ASKED_TO_SEND") return null;
+    if (order.deletedAt) return null;
+    var mins = minutesAgo(lastActionAt(order));
+    var t = delayThresholds(order.priority);
+    if (mins >= t[1]) return "red";
+    if (mins >= t[0]) return "orange";
+    return null;
   }
   function todayISODate() {
     var d = new Date();
@@ -1368,6 +1521,12 @@
   // Unlike purgeExpired (a local display filter), this actually deletes expired rows from
   // the server, since orders now live as individual Supabase rows rather than one combined
   // blob that quietly drops old entries on every save.
+  // Both no-show and deleted-order auto-purge are admin-toggleable (Admin > Deleted orders >
+  // Retention settings), each with its own configurable day count. Turning a toggle off means
+  // that category is kept indefinitely — only removed if staff delete it by hand.
+  function noShowRetentionDays() { return SCHEDULING_SETTINGS.noShowRetentionDays || 7; }
+  function deletedOrdersRetentionDays() { return SCHEDULING_SETTINGS.deletedOrdersRetentionDays || 7; }
+
   function purgeExpiredOnServer(list) {
     var now = Date.now();
     var expiredIds = list
@@ -1378,17 +1537,20 @@
           var ageDays = (now - new Date(completedAt).getTime()) / 86400000;
           return ageDays >= RETENTION_DAYS;
         }
-        // Hard-delete no-show orders 7 days after they were marked as no-show.
+        // Hard-delete no-show orders once their configured retention window has passed —
+        // unless the admin has turned auto-purge off for this category.
         if (o.status === "NO_SHOW") {
+          if (SCHEDULING_SETTINGS.noShowAutoPurge === false) return false;
           var noShowAge = (now - new Date(o.noShowAt || o.createdAt).getTime()) / 86400000;
-          return noShowAge >= 7;
+          return noShowAge >= noShowRetentionDays();
         }
         // Hard-delete any soft-deleted order — any priority, whether deleted manually by staff
-        // or automatically by autoSoftDeleteStale() below — 7 days after it was soft-deleted.
-        // That's the one-week recovery window shown in Admin > Deleted orders.
+        // or automatically by autoSoftDeleteStale() below — once its configured recovery
+        // window (shown in Admin > Deleted orders) has passed, unless auto-purge is off.
         if (o.deletedAt) {
+          if (SCHEDULING_SETTINGS.deletedOrdersAutoPurge === false) return false;
           var daysSinceDeleted = (now - new Date(o.deletedAt).getTime()) / 86400000;
-          return daysSinceDeleted >= 7;
+          return daysSinceDeleted >= deletedOrdersRetentionDays();
         }
         return false;
       })
@@ -1399,8 +1561,9 @@
   // Orders that never reached a final state (Done or No-show) within 24 hours of when they
   // were due are effectively abandoned — nobody marked the patient as arrived/sent, and nobody
   // resolved it. Those get auto soft-deleted, same as a manual delete: they disappear from the
-  // active worklist and land in Admin > Deleted orders for a week (in case someone needs to
-  // recover or audit them) before purgeExpiredOnServer() above hard-removes them.
+  // active worklist and land in Admin > Deleted orders (in case someone needs to recover or
+  // audit them) for the configured recovery window before purgeExpiredOnServer() above
+  // hard-removes them — see deletedOrdersRetentionDays()/SCHEDULING_SETTINGS.deletedOrdersAutoPurge.
   // Uses an actual elapsed-time threshold rather than "belongs to a past calendar day", so an
   // ER order created a few minutes before midnight isn't wrongly swept up right after it turns.
   var STALE_ORDER_HOURS = 24;
@@ -1720,6 +1883,13 @@
   var protocolModalContext = $("protocolModalContext");
   var protocolTextInput = $("protocolTextInput");
   var protocolFormError = $("protocolFormError");
+  var holdReasonModalOverlay = $("holdReasonModalOverlay");
+  var holdReasonForm = $("holdReasonForm");
+  var holdReasonModalClose = $("holdReasonModalClose");
+  var holdReasonCancelBtn = $("holdReasonCancelBtn");
+  var holdReasonModalContext = $("holdReasonModalContext");
+  var holdReasonTextInput = $("holdReasonTextInput");
+  var holdReasonFormError = $("holdReasonFormError");
   var modalTitle = $("modalTitle");
   var modalClose = $("modalClose");
   var cancelBtn = $("cancelBtn");
@@ -1861,6 +2031,12 @@
   var preventDoubleBookingInput = document.getElementById("preventDoubleBooking");
   var schedulingSettingsError = document.getElementById("schedulingSettingsError");
   var saveSchedulingSettingsBtn = document.getElementById("saveSchedulingSettingsBtn");
+  var erDelayOrangeInput = document.getElementById("erDelayOrangeInput");
+  var erDelayRedInput = document.getElementById("erDelayRedInput");
+  var inpatientDelayOrangeInput = document.getElementById("inpatientDelayOrangeInput");
+  var inpatientDelayRedInput = document.getElementById("inpatientDelayRedInput");
+  var delayThresholdsError = document.getElementById("delayThresholdsError");
+  var saveDelayThresholdsBtn = document.getElementById("saveDelayThresholdsBtn");
   var adminTabProtocols = document.getElementById("adminTabProtocols");
   var enabledProtocolsChecklist = document.getElementById("enabledProtocolsChecklist");
   var saveEnabledProtocolsBtn = document.getElementById("saveEnabledProtocolsBtn");
@@ -1885,6 +2061,14 @@
   var saveDeptNamesBtn = document.getElementById("saveDeptNamesBtn");
   var adminTabBranding = document.getElementById("adminTabBranding");
   var adminTabDeleted = document.getElementById("adminTabDeleted");
+  var deletedOrdersAutoPurgeInput = document.getElementById("deletedOrdersAutoPurgeInput");
+  var deletedOrdersRetentionDaysInput = document.getElementById("deletedOrdersRetentionDaysInput");
+  var deletedRetentionError = document.getElementById("deletedRetentionError");
+  var saveDeletedRetentionBtn = document.getElementById("saveDeletedRetentionBtn");
+  var noShowAutoPurgeInput = document.getElementById("noShowAutoPurgeInput");
+  var noShowRetentionDaysInput = document.getElementById("noShowRetentionDaysInput");
+  var noShowRetentionError = document.getElementById("noShowRetentionError");
+  var saveNoShowRetentionBtn = document.getElementById("saveNoShowRetentionBtn");
   var deletedOrdersList = document.getElementById("deletedOrdersList");
   var logoLeftPreviewWrap = document.getElementById("logoLeftPreviewWrap");
   var logoLeftFileInput = document.getElementById("logoLeftFileInput");
@@ -1918,8 +2102,10 @@
       renderStaffLists();
       populateSharedInstructionFields();
       populateSchedulingSettingsFields();
+      populateDelayThresholdFields();
       populateProtocolSettingsFields();
       populateDepartmentSettingsFields();
+      populateRetentionSettingsFields();
       renderLogoPreviews();
     });
     // Orders aren't needed for most admin tabs, but Deleted orders shows them, so load (and
@@ -2004,6 +2190,51 @@
   setupLogoControls("left", logoLeftFileInput, logoLeftRemoveBtn);
   setupLogoControls("right", logoRightFileInput, logoRightRemoveBtn);
 
+  // ---- Retention settings (deleted orders + no-show auto-purge) ----
+
+  function populateRetentionSettingsFields() {
+    deletedOrdersAutoPurgeInput.checked = SCHEDULING_SETTINGS.deletedOrdersAutoPurge !== false;
+    deletedOrdersRetentionDaysInput.value = deletedOrdersRetentionDays();
+    noShowAutoPurgeInput.checked = SCHEDULING_SETTINGS.noShowAutoPurge !== false;
+    noShowRetentionDaysInput.value = noShowRetentionDays();
+    deletedRetentionError.classList.add("hidden");
+    noShowRetentionError.classList.add("hidden");
+  }
+
+  saveDeletedRetentionBtn.addEventListener("click", function () {
+    var days = parseInt(deletedOrdersRetentionDaysInput.value, 10);
+    if (!days || days < 1 || days > 365) {
+      deletedRetentionError.textContent = "Days must be a number between 1 and 365.";
+      deletedRetentionError.classList.remove("hidden");
+      return;
+    }
+    deletedRetentionError.classList.add("hidden");
+    persistSchedulingSettings({
+      deletedOrdersAutoPurge: deletedOrdersAutoPurgeInput.checked,
+      deletedOrdersRetentionDays: days
+    }).then(function () {
+      showToast("Deleted orders retention saved");
+      renderDeletedOrdersList();
+    });
+  });
+
+  saveNoShowRetentionBtn.addEventListener("click", function () {
+    var days = parseInt(noShowRetentionDaysInput.value, 10);
+    if (!days || days < 1 || days > 365) {
+      noShowRetentionError.textContent = "Days must be a number between 1 and 365.";
+      noShowRetentionError.classList.remove("hidden");
+      return;
+    }
+    noShowRetentionError.classList.add("hidden");
+    persistSchedulingSettings({
+      noShowAutoPurge: noShowAutoPurgeInput.checked,
+      noShowRetentionDays: days
+    }).then(function () {
+      showToast("No-show retention saved");
+      renderNoShowSection();
+    });
+  });
+
   // ---- Deleted orders ----
 
   function renderDeletedOrdersList() {
@@ -2013,16 +2244,20 @@
       return;
     }
     var now = Date.now();
+    var purgeOn = SCHEDULING_SETTINGS.deletedOrdersAutoPurge !== false;
     deletedOrdersList.innerHTML = deleted.map(function (o) {
       var apptDate = o.appointmentDate || orderDisplayDate(o) || "—";
       var apptTime = o.appointmentTime || "—";
       var deletedWhen = fmtTime(o.deletedAt);
-      var daysLeft = Math.max(0, 7 - Math.floor((now - new Date(o.deletedAt).getTime()) / 86400000));
+      var daysLeft = Math.max(0, deletedOrdersRetentionDays() - Math.floor((now - new Date(o.deletedAt).getTime()) / 86400000));
+      var expiryText = purgeOn
+        ? (daysLeft + (daysLeft === 1 ? ' day' : ' days') + ' until permanent removal')
+        : 'kept until manually removed';
       return '<div class="staff-row" style="flex-wrap:wrap;gap:6px 10px;">' +
         '<div style="flex:1 1 auto;">' +
           '<div style="font-weight:700;font-size:13px;">' + escapeHtml(o.fileNumber) + (o.patientName ? " — " + escapeHtml(o.patientName) : "") + '</div>' +
           '<div style="font-size:12px;color:var(--sub);">' + escapeHtml(protocolLabel(o.protocol)) + ' · ' + escapeHtml(apptDate) + (apptTime !== "—" ? " at " + escapeHtml(apptTime) : "") + '</div>' +
-          '<div style="font-size:11px;color:var(--faint);">Deleted ' + escapeHtml(deletedWhen) + ' by ' + escapeHtml(o.deletedBy || "—") + ' · ' + daysLeft + (daysLeft === 1 ? ' day' : ' days') + ' until permanent removal</div>' +
+          '<div style="font-size:11px;color:var(--faint);">Deleted ' + escapeHtml(deletedWhen) + ' by ' + escapeHtml(o.deletedBy || "—") + ' · ' + expiryText + '</div>' +
         '</div>' +
         '<span class="row-btns">' +
           '<button type="button" class="btn-small primary" data-action="restore-order" data-id="' + o.id + '">Restore</button>' +
@@ -2214,7 +2449,15 @@
       departmentLabels: SCHEDULING_SETTINGS.departmentLabels,
       customDepartments: SCHEDULING_SETTINGS.customDepartments,
       preventDoubleBooking: SCHEDULING_SETTINGS.preventDoubleBooking,
-      enabledDepartments: SCHEDULING_SETTINGS.enabledDepartments
+      enabledDepartments: SCHEDULING_SETTINGS.enabledDepartments,
+      deletedOrdersAutoPurge: SCHEDULING_SETTINGS.deletedOrdersAutoPurge,
+      deletedOrdersRetentionDays: SCHEDULING_SETTINGS.deletedOrdersRetentionDays,
+      noShowAutoPurge: SCHEDULING_SETTINGS.noShowAutoPurge,
+      noShowRetentionDays: SCHEDULING_SETTINGS.noShowRetentionDays,
+      erDelayOrangeMinutes: SCHEDULING_SETTINGS.erDelayOrangeMinutes,
+      erDelayRedMinutes: SCHEDULING_SETTINGS.erDelayRedMinutes,
+      inpatientDelayOrangeMinutes: SCHEDULING_SETTINGS.inpatientDelayOrangeMinutes,
+      inpatientDelayRedMinutes: SCHEDULING_SETTINGS.inpatientDelayRedMinutes
     };
     for (var k in partial) merged[k] = partial[k];
     return saveSchedulingSettings(merged);
@@ -2258,6 +2501,39 @@
       preventDoubleBooking: preventDoubleBookingInput.checked
     }).then(function () {
       showToast("Scheduling settings saved");
+    });
+  });
+
+  function populateDelayThresholdFields() {
+    erDelayOrangeInput.value = SCHEDULING_SETTINGS.erDelayOrangeMinutes || 15;
+    erDelayRedInput.value = SCHEDULING_SETTINGS.erDelayRedMinutes || 30;
+    inpatientDelayOrangeInput.value = SCHEDULING_SETTINGS.inpatientDelayOrangeMinutes || 60;
+    inpatientDelayRedInput.value = SCHEDULING_SETTINGS.inpatientDelayRedMinutes || 120;
+    delayThresholdsError.classList.add("hidden");
+  }
+
+  saveDelayThresholdsBtn.addEventListener("click", function () {
+    var erOrange = parseInt(erDelayOrangeInput.value, 10);
+    var erRed = parseInt(erDelayRedInput.value, 10);
+    var inpOrange = parseInt(inpatientDelayOrangeInput.value, 10);
+    var inpRed = parseInt(inpatientDelayRedInput.value, 10);
+    var allPositive = [erOrange, erRed, inpOrange, inpRed].every(function (n) { return n > 0; });
+    if (!allPositive) {
+      delayThresholdsError.textContent = "All four thresholds must be numbers greater than 0.";
+      delayThresholdsError.classList.remove("hidden");
+      return;
+    }
+    if (erRed <= erOrange || inpRed <= inpOrange) {
+      delayThresholdsError.textContent = "The red threshold must be greater than the orange threshold for both ER and Inpatient.";
+      delayThresholdsError.classList.remove("hidden");
+      return;
+    }
+    delayThresholdsError.classList.add("hidden");
+    persistSchedulingSettings({
+      erDelayOrangeMinutes: erOrange, erDelayRedMinutes: erRed,
+      inpatientDelayOrangeMinutes: inpOrange, inpatientDelayRedMinutes: inpRed
+    }).then(function () {
+      showToast("Delay thresholds saved");
     });
   });
 
@@ -2914,9 +3190,34 @@
     updateOrder(id, {
       status: "ASKED_TO_SEND",
       askedToSendAt: nowISO(),
-      tech: state.session.name
+      tech: state.session.name,
+      // Sending the patient resolves whatever was holding it up.
+      holdReason: null, holdReasonText: null, holdReasonAt: null, holdReasonBy: null
     });
     showToast(isOutpatient ? "Marked as arrived" : "Marked as asked to send patient");
+  }
+
+  // Lets a tech flag WHY an ER/Inpatient order hasn't been sent yet (awaiting consent, not
+  // fasting, or a free-typed reason) — purely informational, doesn't change order.status.
+  // Setting/changing a reason also resets the delay clock (see orderDelayLevel()), since it
+  // counts as the tech having just acted on the order.
+  var HOLD_REASON_LABELS = { AWAITING_CONSENT: "Awaiting consent", NOT_FASTING: "Not fasting" };
+  function holdReasonLabel(order) {
+    if (order.holdReason === "OTHER") return order.holdReasonText || "Other";
+    return HOLD_REASON_LABELS[order.holdReason] || order.holdReason;
+  }
+  function setHoldReason(id, reason, text) {
+    updateOrder(id, {
+      holdReason: reason,
+      holdReasonText: reason === "OTHER" ? (text || "") : null,
+      holdReasonAt: nowISO(),
+      holdReasonBy: state.session.name
+    });
+    showToast("Reason noted");
+  }
+  function clearHoldReason(id) {
+    updateOrder(id, { holdReason: null, holdReasonText: null, holdReasonAt: null, holdReasonBy: null });
+    showToast("Reason cleared");
   }
 
   function markDone(id) {
@@ -2966,7 +3267,8 @@
   }
 
   // Lets a tech bring a no-show patient back into the active workflow if they turn up later,
-  // any time within the 7-day no-show recovery window before the order hard-deletes.
+  // any time within the configured no-show recovery window before the order hard-deletes
+  // (or indefinitely, if the admin has turned no-show auto-purge off).
   // Moves it straight to Arrived (same as the normal Arrived step) and re-dates it to today so
   // it shows up on today's worklist instead of staying pinned to the missed appointment day.
   function startNoShowPatient(id) {
@@ -3100,15 +3402,10 @@
           (o.radiologist || "").toLowerCase().indexOf(q) !== -1;
       });
     }
-    var prioRank = { ER: 0, INPATIENT: 1, OUTPATIENT: 2 };
-    var statusRank = { SCHEDULED: 0, ASKED_TO_SEND: 1, DONE: 2 };
-    list.sort(function (a, b) {
-      var sr = statusRank[a.status] - statusRank[b.status];
-      if (sr !== 0) return sr;
-      var pr = prioRank[a.priority] - prioRank[b.priority];
-      if (pr !== 0) return pr;
-      return new Date(a.createdAt) - new Date(b.createdAt);
-    });
+    // Oldest order first within each column (ER/Inpatient columns are what this actually
+    // matters for — Outpatient renders via its own time-slot grouping instead), regardless of
+    // status, so the longest-waiting order is the most visible.
+    list.sort(function (a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
     return list;
   }
 
@@ -3179,11 +3476,16 @@
     noShowSection.classList.toggle("hidden", noShows.length === 0);
     noShowCount.textContent = noShows.length;
     var canStart = state.session.role === "TECH";
+    var noShowPurgeOn = SCHEDULING_SETTINGS.noShowAutoPurge !== false;
     noShowList.innerHTML = noShows.map(function (o) {
       var now = Date.now();
+      var retentionDays = noShowRetentionDays();
       var daysLeft = o.noShowAt
-        ? Math.max(0, 7 - Math.floor((now - new Date(o.noShowAt).getTime()) / 86400000))
-        : 7;
+        ? Math.max(0, retentionDays - Math.floor((now - new Date(o.noShowAt).getTime()) / 86400000))
+        : retentionDays;
+      var expiryText = noShowPurgeOn
+        ? 'Removed in ' + daysLeft + (daysLeft === 1 ? ' day' : ' days')
+        : 'Kept until manually removed';
       return '<div class="no-show-card">' +
         '<div class="ns-protocol">' + escapeHtml(protocolLabel(o.protocol)) + '</div>' +
         '<div class="ns-meta">' +
@@ -3193,7 +3495,7 @@
           (o.appointmentTime ? ' at ' + escapeHtml(o.appointmentTime) : '') +
         '</div>' +
         '<div class="ns-warning">This patient did not attend their appointment.</div>' +
-        '<div class="ns-expiry">Removed in ' + daysLeft + (daysLeft === 1 ? ' day' : ' days') + '</div>' +
+        '<div class="ns-expiry">' + expiryText + '</div>' +
         (canStart
           ? '<div class="action-row" style="margin-top:8px;"><button type="button" class="btn-stage" data-action="start-no-show" data-id="' + o.id + '">Start — patient showed up</button></div>'
           : '') +
@@ -3352,8 +3654,19 @@
     var actionHtml = "";
     if (role === "TECH") {
       if (order.status === "SCHEDULED") {
-        var actionLabel = order.priority === "OUTPATIENT" ? "Arrived" : "Ask to send patient";
-        actionHtml = '<div class="action-row"><button type="button" class="btn-stage" data-action="ask-send" data-id="' + order.id + '">' + actionLabel + '</button></div>';
+        if (order.priority === "OUTPATIENT") {
+          actionHtml = '<div class="action-row"><button type="button" class="btn-stage" data-action="ask-send" data-id="' + order.id + '">Arrived</button></div>';
+        } else {
+          // ER/Inpatient: besides sending the patient, let the tech flag why it hasn't
+          // happened yet — informational only, doesn't change order.status (see setHoldReason()).
+          actionHtml = '<div class="action-row">' +
+            '<button type="button" class="btn-stage" data-action="ask-send" data-id="' + order.id + '">Ask to send patient</button>' +
+            '<button type="button" class="btn-stage" style="background:#FFF3DC;color:#9A5B00;border-color:#F2C94C;" data-action="set-hold-reason" data-reason="AWAITING_CONSENT" data-id="' + order.id + '">Awaiting consent</button>' +
+            '<button type="button" class="btn-stage" style="background:#EEF0F3;color:#5A5F6B;border-color:#D9DBE1;" data-action="set-hold-reason" data-reason="NOT_FASTING" data-id="' + order.id + '">Not fasting</button>' +
+            '<button type="button" class="btn-stage" style="background:#EEF2FF;color:#4338CA;border-color:#C7D2FE;" data-action="open-hold-reason-other" data-id="' + order.id + '">Other…</button>' +
+            (order.holdReason ? '<button type="button" class="btn-stage outline" data-action="clear-hold-reason" data-id="' + order.id + '">Clear reason</button>' : '') +
+            '</div>';
+        }
       } else if (order.status === "ASKED_TO_SEND") {
         actionHtml = '<div class="action-row">' +
           '<button type="button" class="btn-stage green" data-action="mark-done" data-id="' + order.id + '">Mark done</button>' +
@@ -3392,6 +3705,10 @@
       protocolingBadgeHtml = '<span class="protocoling-badge" title="Flagged for protocoling review">🏷 Protocoling</span>';
     }
 
+    var holdReasonBadgeHtml = order.holdReason
+      ? '<span class="hold-reason-badge" title="' + escapeHtml(order.holdReasonBy ? "Set by " + order.holdReasonBy : "") + '">⏳ ' + escapeHtml(holdReasonLabel(order)) + '</span>'
+      : "";
+
     var protocolingBannerHtml = (needsProtocolingToday && role === "RADIOLOGIST")
       ? '<div class="protocoling-banner">🏷 Needs protocoling — appointment is today, please review before the scan.</div>'
       : "";
@@ -3404,8 +3721,10 @@
       ? '<div class="notes-block"><span class="notes-label">Protocol' + (order.protocoledBy ? " — " + escapeHtml(order.protocoledBy) : "") + ':</span> ' + escapeHtml(order.protocolText) + '</div>'
       : "";
 
+    var delayLevel = orderDelayLevel(order);
+
     return (
-      '<div class="order-row' + (expanded ? ' expanded' : '') + '" data-id="' + order.id + '">' +
+      '<div class="order-row' + (expanded ? ' expanded' : '') + (delayLevel ? ' delay-' + delayLevel : '') + '" data-id="' + order.id + '">' +
         '<div class="row-main" data-action="toggle" data-id="' + order.id + '">' +
           '<div class="cell cell-priority"><span class="badge" style="color:' + prio.color + ';background:' + prio.bg + '">' + prio.label + '</span></div>' +
           '<div class="cell cell-file" data-label="File #">' +
@@ -3418,6 +3737,7 @@
             '<div class="protocol-text-row">' +
               '<span class="protocol-text">' + escapeHtml(protocolLabel(order.protocol)) + '</span>' +
               protocolingBadgeHtml +
+              holdReasonBadgeHtml +
             '</div>' +
             (order.patientName ? '<div class="patient-name-text">' + escapeHtml(order.patientName) + '</div>' : '') +
             '<div class="meta-text">' + metaHtml + '</div>' +
@@ -3473,6 +3793,13 @@
       markNoShow(id);
     } else if (action === "start-no-show") {
       startNoShowPatient(id);
+    } else if (action === "set-hold-reason") {
+      setHoldReason(id, actionEl.getAttribute("data-reason"));
+    } else if (action === "clear-hold-reason") {
+      clearHoldReason(id);
+    } else if (action === "open-hold-reason-other") {
+      var orderForReason = state.orders.filter(function (o) { return o.id === id; })[0];
+      if (orderForReason) openHoldReasonModal(orderForReason);
     } else if (action === "print-instructions") {
       var orderToPrint = state.orders.filter(function (o) { return o.id === id; })[0];
       if (orderToPrint) {
@@ -3493,8 +3820,11 @@
       var target = state.orders.filter(function (o) { return o.id === id; })[0];
       if (!target) return;
       var isSoftDelete = target.priority === "OUTPATIENT" && target.printedAt;
+      var recoveryNote = SCHEDULING_SETTINGS.deletedOrdersAutoPurge === false
+        ? "the order will be kept in the admin's deleted view until manually removed"
+        : "the order will be kept in the admin's deleted view for " + deletedOrdersRetentionDays() + (deletedOrdersRetentionDays() === 1 ? " day" : " days") + " in case this was a mistake";
       var confirmMsg = isSoftDelete
-        ? "Remove order for file #" + target.fileNumber + "? Since instructions were already printed, the order will be kept in the admin's deleted view for one week in case this was a mistake."
+        ? "Remove order for file #" + target.fileNumber + "? Since instructions were already printed, " + recoveryNote + "."
         : "Remove order for file #" + target.fileNumber + "? This cannot be undone.";
       if (window.confirm(confirmMsg)) {
         deleteOrder(id);
@@ -3552,6 +3882,40 @@
       showToast("Protocol submitted");
       closeProtocolModal();
     });
+  });
+
+  // ---- "Other" hold-reason modal (ER/Inpatient) ----
+
+  var holdReasonModalOrderId = null;
+
+  function openHoldReasonModal(order) {
+    holdReasonModalOrderId = order.id;
+    holdReasonFormError.classList.add("hidden");
+    holdReasonTextInput.value = order.holdReason === "OTHER" ? (order.holdReasonText || "") : "";
+    holdReasonModalContext.textContent = "File #" + order.fileNumber + (order.patientName ? " — " + order.patientName : "");
+    holdReasonModalOverlay.classList.remove("hidden");
+    holdReasonTextInput.focus();
+  }
+  function closeHoldReasonModal() {
+    holdReasonModalOverlay.classList.add("hidden");
+    holdReasonModalOrderId = null;
+  }
+
+  holdReasonModalClose.addEventListener("click", closeHoldReasonModal);
+  holdReasonCancelBtn.addEventListener("click", closeHoldReasonModal);
+  holdReasonModalOverlay.addEventListener("click", function (e) { if (e.target === holdReasonModalOverlay) closeHoldReasonModal(); });
+
+  holdReasonForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var text = holdReasonTextInput.value.trim();
+    if (!text) {
+      holdReasonFormError.textContent = "Enter a reason before saving.";
+      holdReasonFormError.classList.remove("hidden");
+      return;
+    }
+    if (!holdReasonModalOrderId) return;
+    setHoldReason(holdReasonModalOrderId, "OTHER", text);
+    closeHoldReasonModal();
   });
 
   // ---------- Top-level event wiring ----------
@@ -3669,7 +4033,17 @@
           // Defaults to on for rows saved before this setting existed — the admin can turn it
           // off explicitly from the Scheduling tab.
           preventDoubleBooking: settings.preventDoubleBooking !== false,
-          enabledDepartments: Array.isArray(settings.enabledDepartments) ? settings.enabledDepartments : null
+          enabledDepartments: Array.isArray(settings.enabledDepartments) ? settings.enabledDepartments : null,
+          // Both auto-purge toggles default to on (matching the previous fixed-7-day behavior)
+          // for rows saved before these settings existed.
+          deletedOrdersAutoPurge: settings.deletedOrdersAutoPurge !== false,
+          deletedOrdersRetentionDays: (settings.deletedOrdersRetentionDays > 0) ? settings.deletedOrdersRetentionDays : 7,
+          noShowAutoPurge: settings.noShowAutoPurge !== false,
+          noShowRetentionDays: (settings.noShowRetentionDays > 0) ? settings.noShowRetentionDays : 7,
+          erDelayOrangeMinutes: (settings.erDelayOrangeMinutes > 0) ? settings.erDelayOrangeMinutes : 15,
+          erDelayRedMinutes: (settings.erDelayRedMinutes > 0) ? settings.erDelayRedMinutes : 30,
+          inpatientDelayOrangeMinutes: (settings.inpatientDelayOrangeMinutes > 0) ? settings.inpatientDelayOrangeMinutes : 60,
+          inpatientDelayRedMinutes: (settings.inpatientDelayRedMinutes > 0) ? settings.inpatientDelayRedMinutes : 120
         };
       }
       if (typeof logos === "string") {
