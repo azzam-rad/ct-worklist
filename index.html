@@ -415,6 +415,14 @@
   .staff-row .row-btns { display: flex; gap: 6px; }
   .staff-empty { font-size: 12.5px; color: var(--faint); padding: 8px 2px; }
 
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 420px; }
+  .stats-table th {
+    text-align: left; font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase;
+    letter-spacing: 0.3px; padding: 8px 10px; border-bottom: 1px solid var(--line);
+  }
+  .stats-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  .stats-table tr:last-child td { border-bottom: none; }
+
   .variant-card {
     border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; background: #fff;
   }
@@ -680,6 +688,7 @@
     <button class="admin-tab" data-tab="departments">Departments</button>
     <button class="admin-tab" data-tab="branding">Branding</button>
     <button class="admin-tab" data-tab="deleted">Deleted orders</button>
+    <button class="admin-tab" data-tab="stats">Stats</button>
   </div>
 
   <main class="admin-content">
@@ -980,7 +989,24 @@
 
     <!-- ---- DELETED ORDERS TAB ---- -->
     <section id="adminTabDeleted" class="admin-panel hidden">
-      <div class="admin-col-grid" style="max-width:760px;margin-bottom:16px;">
+      <div class="admin-col-grid" style="max-width:1080px;margin-bottom:16px;">
+        <div class="admin-card">
+          <div class="admin-card-head"><h2>Completed orders retention</h2></div>
+          <p class="field-hint" style="margin-bottom:10px;">
+            Controls how long a Done order is kept before being permanently removed. Admin &gt;
+            Stats needs a completed order to still exist to count it, so keep this at least as
+            long as you want monthly stats history for.
+          </p>
+          <div class="field">
+            <label for="doneOrdersRetentionDaysInput">Days to keep after completion</label>
+            <input id="doneOrdersRetentionDaysInput" type="number" min="1" max="1825" class="input" />
+          </div>
+          <div id="doneRetentionError" class="error-text hidden"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" id="saveDoneRetentionBtn" class="btn-submit">Save</button>
+          </div>
+        </div>
+
         <div class="admin-card">
           <div class="admin-card-head"><h2>Deleted orders retention</h2></div>
           <p class="field-hint" style="margin-bottom:10px;">
@@ -1032,6 +1058,37 @@
         </div>
         <div id="deletedOrdersList">
           <div class="staff-empty">No deleted orders at the moment.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- STATS TAB ---- -->
+    <section id="adminTabStats" class="admin-panel hidden">
+      <div class="admin-card" style="max-width:900px;">
+        <div class="admin-card-head">
+          <h2>Monthly stats</h2>
+          <span class="field-hint" style="font-size:12px;">For staff feedback — average turnaround for technologists, protocol-writing speed for radiologists.</span>
+        </div>
+
+        <div class="field" style="max-width:220px;">
+          <label for="statsMonthInput">Month</label>
+          <input id="statsMonthInput" type="month" class="input" />
+        </div>
+
+        <h3 style="font-size:13px;margin:18px 0 8px;">Technologists — turnaround from Arrived to Done</h3>
+        <div style="overflow-x:auto;">
+          <table class="stats-table">
+            <thead><tr><th>Name</th><th>Orders completed</th><th>Avg turnaround</th></tr></thead>
+            <tbody id="techStatsBody"></tbody>
+          </table>
+        </div>
+
+        <h3 style="font-size:13px;margin:22px 0 8px;">Radiologists — protocols written</h3>
+        <div style="overflow-x:auto;">
+          <table class="stats-table">
+            <thead><tr><th>Name</th><th>Protocols written</th><th>Avg time to write</th></tr></thead>
+            <tbody id="radiologistStatsBody"></tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -1275,7 +1332,6 @@
   // PLACEHOLDER — currently empty, so no logo prints until set.
   var LOGO_LEFT_DATA_URL = "";
   var LOGO_RIGHT_DATA_URL = "";
-  var RETENTION_DAYS = 30;
 
   // Admin-configurable scheduling rules — how far ahead outpatient appointments can be
   // booked, how many contrast-enhanced outpatient studies can be booked per day, and the
@@ -1293,7 +1349,8 @@
     deletedOrdersAutoPurge: true, deletedOrdersRetentionDays: 7,
     noShowAutoPurge: true, noShowRetentionDays: 7,
     erDelayOrangeMinutes: 15, erDelayRedMinutes: 30,
-    inpatientDelayOrangeMinutes: 60, inpatientDelayRedMinutes: 120
+    inpatientDelayOrangeMinutes: 60, inpatientDelayRedMinutes: 120,
+    doneOrdersRetentionDays: 180
   };
   function outpatientWorkStart() { return SCHEDULING_SETTINGS.workStart || DEFAULT_WORK_START; }
   function outpatientWorkEnd() { return SCHEDULING_SETTINGS.workEnd || DEFAULT_WORK_END; }
@@ -1511,13 +1568,23 @@
       return { en: "—", ar: "—" };
     }
   }
+  // Both no-show and deleted-order auto-purge are admin-toggleable (Admin > Deleted orders >
+  // Retention settings), each with its own configurable day count. Turning a toggle off means
+  // that category is kept indefinitely — only removed if staff delete it by hand.
+  // Done-order retention has no on/off toggle (completed orders always eventually purge), just
+  // a configurable day count — defaults to 180 days (6 months) so Admin > Stats has enough
+  // history for month-over-month review before older data ages out.
+  function noShowRetentionDays() { return SCHEDULING_SETTINGS.noShowRetentionDays || 7; }
+  function deletedOrdersRetentionDays() { return SCHEDULING_SETTINGS.deletedOrdersRetentionDays || 7; }
+  function doneOrdersRetentionDays() { return SCHEDULING_SETTINGS.doneOrdersRetentionDays || 180; }
+
   function purgeExpired(list) {
     var now = Date.now();
     return list.filter(function (o) {
       if (o.status === "DONE") {
         var completedAt = o.doneAt || o.createdAt;
         var ageDays = (now - new Date(completedAt).getTime()) / 86400000;
-        return ageDays < RETENTION_DAYS;
+        return ageDays < doneOrdersRetentionDays();
       }
       return true;
     });
@@ -1526,12 +1593,6 @@
   // Unlike purgeExpired (a local display filter), this actually deletes expired rows from
   // the server, since orders now live as individual Supabase rows rather than one combined
   // blob that quietly drops old entries on every save.
-  // Both no-show and deleted-order auto-purge are admin-toggleable (Admin > Deleted orders >
-  // Retention settings), each with its own configurable day count. Turning a toggle off means
-  // that category is kept indefinitely — only removed if staff delete it by hand.
-  function noShowRetentionDays() { return SCHEDULING_SETTINGS.noShowRetentionDays || 7; }
-  function deletedOrdersRetentionDays() { return SCHEDULING_SETTINGS.deletedOrdersRetentionDays || 7; }
-
   function purgeExpiredOnServer(list) {
     var now = Date.now();
     var expiredIds = list
@@ -1540,7 +1601,7 @@
         if (o.status === "DONE") {
           var completedAt = o.doneAt || o.createdAt;
           var ageDays = (now - new Date(completedAt).getTime()) / 86400000;
-          return ageDays >= RETENTION_DAYS;
+          return ageDays >= doneOrdersRetentionDays();
         }
         // Hard-delete no-show orders once their configured retention window has passed —
         // unless the admin has turned auto-purge off for this category.
@@ -2106,6 +2167,9 @@
   var saveDeptNamesBtn = document.getElementById("saveDeptNamesBtn");
   var adminTabBranding = document.getElementById("adminTabBranding");
   var adminTabDeleted = document.getElementById("adminTabDeleted");
+  var doneOrdersRetentionDaysInput = document.getElementById("doneOrdersRetentionDaysInput");
+  var doneRetentionError = document.getElementById("doneRetentionError");
+  var saveDoneRetentionBtn = document.getElementById("saveDoneRetentionBtn");
   var deletedOrdersAutoPurgeInput = document.getElementById("deletedOrdersAutoPurgeInput");
   var deletedOrdersRetentionDaysInput = document.getElementById("deletedOrdersRetentionDaysInput");
   var deletedRetentionError = document.getElementById("deletedRetentionError");
@@ -2115,6 +2179,10 @@
   var noShowRetentionError = document.getElementById("noShowRetentionError");
   var saveNoShowRetentionBtn = document.getElementById("saveNoShowRetentionBtn");
   var deletedOrdersList = document.getElementById("deletedOrdersList");
+  var adminTabStats = document.getElementById("adminTabStats");
+  var statsMonthInput = document.getElementById("statsMonthInput");
+  var techStatsBody = document.getElementById("techStatsBody");
+  var radiologistStatsBody = document.getElementById("radiologistStatsBody");
   var logoLeftPreviewWrap = document.getElementById("logoLeftPreviewWrap");
   var logoLeftFileInput = document.getElementById("logoLeftFileInput");
   var logoLeftRemoveBtn = document.getElementById("logoLeftRemoveBtn");
@@ -2173,7 +2241,9 @@
       adminTabDepartments.classList.toggle("hidden", tab !== "departments");
       adminTabBranding.classList.toggle("hidden", tab !== "branding");
       adminTabDeleted.classList.toggle("hidden", tab !== "deleted");
+      adminTabStats.classList.toggle("hidden", tab !== "stats");
       if (tab === "deleted") renderDeletedOrdersList();
+      if (tab === "stats") renderStatsTab();
     });
   });
 
@@ -2238,13 +2308,28 @@
   // ---- Retention settings (deleted orders + no-show auto-purge) ----
 
   function populateRetentionSettingsFields() {
+    doneOrdersRetentionDaysInput.value = doneOrdersRetentionDays();
     deletedOrdersAutoPurgeInput.checked = SCHEDULING_SETTINGS.deletedOrdersAutoPurge !== false;
     deletedOrdersRetentionDaysInput.value = deletedOrdersRetentionDays();
     noShowAutoPurgeInput.checked = SCHEDULING_SETTINGS.noShowAutoPurge !== false;
     noShowRetentionDaysInput.value = noShowRetentionDays();
+    doneRetentionError.classList.add("hidden");
     deletedRetentionError.classList.add("hidden");
     noShowRetentionError.classList.add("hidden");
   }
+
+  saveDoneRetentionBtn.addEventListener("click", function () {
+    var days = parseInt(doneOrdersRetentionDaysInput.value, 10);
+    if (!days || days < 1 || days > 1825) {
+      doneRetentionError.textContent = "Days must be a number between 1 and 1825 (5 years).";
+      doneRetentionError.classList.remove("hidden");
+      return;
+    }
+    doneRetentionError.classList.add("hidden");
+    persistSchedulingSettings({ doneOrdersRetentionDays: days }).then(function () {
+      showToast("Completed orders retention saved");
+    });
+  });
 
   saveDeletedRetentionBtn.addEventListener("click", function () {
     var days = parseInt(deletedOrdersRetentionDaysInput.value, 10);
@@ -2334,6 +2419,87 @@
       });
     }
   });
+
+  // ---- Stats (Admin > Stats) ----
+  // Monthly feedback numbers: technologists get average turnaround time (Arrived → Done, i.e.
+  // their actual hands-on scan-completion speed — using Arrived rather than order-creation time
+  // avoids outpatient's future-dated appointment lead time from swamping the number).
+  // Radiologists get protocol-writing volume and speed (createdAt, when needsProtocoling was
+  // flagged, → protocoledAt). Both are computed client-side from state.orders, which is why
+  // Admin > Deleted orders > "Completed orders retention" needs to be kept long enough to cover
+  // however far back stats need to reach — a purged Done order can't be counted anymore.
+
+  function fmtDuration(minutes) {
+    if (minutes == null || isNaN(minutes)) return "—";
+    if (minutes < 60) return Math.round(minutes) + "m";
+    var hours = minutes / 60;
+    if (hours < 48) return (Math.round(hours * 10) / 10) + "h";
+    return (Math.round((hours / 24) * 10) / 10) + "d";
+  }
+
+  // monthValue is "YYYY-MM" from an <input type="month">. End is exclusive.
+  function monthRange(monthValue) {
+    var parts = monthValue.split("-");
+    var year = parseInt(parts[0], 10), month = parseInt(parts[1], 10);
+    return { start: new Date(year, month - 1, 1).getTime(), end: new Date(year, month, 1).getTime() };
+  }
+  function inMonth(iso, range) {
+    if (!iso) return false;
+    var t = new Date(iso).getTime();
+    return t >= range.start && t < range.end;
+  }
+
+  function computeTechStats(monthValue) {
+    var range = monthRange(monthValue);
+    var byTech = {};
+    TECHS.forEach(function (p) { byTech[p.name] = { n: 0, totalMinutes: 0 }; });
+    state.orders.forEach(function (o) {
+      if (o.deletedAt || o.status !== "DONE" || !o.tech || !o.askedToSendAt || !o.doneAt) return;
+      if (!inMonth(o.doneAt, range)) return;
+      var minutes = (new Date(o.doneAt).getTime() - new Date(o.askedToSendAt).getTime()) / 60000;
+      if (minutes < 0) return;
+      if (!byTech[o.tech]) byTech[o.tech] = { n: 0, totalMinutes: 0 }; // covers techs since removed
+      byTech[o.tech].n++;
+      byTech[o.tech].totalMinutes += minutes;
+    });
+    return byTech;
+  }
+
+  function computeRadiologistStats(monthValue) {
+    var range = monthRange(monthValue);
+    var byRad = {};
+    RADIOLOGISTS.forEach(function (p) { byRad[p.name] = { n: 0, totalMinutes: 0 }; });
+    state.orders.forEach(function (o) {
+      if (o.deletedAt || !o.protocoledBy || !o.protocoledAt || !o.createdAt) return;
+      if (!inMonth(o.protocoledAt, range)) return;
+      var minutes = (new Date(o.protocoledAt).getTime() - new Date(o.createdAt).getTime()) / 60000;
+      if (minutes < 0) return;
+      if (!byRad[o.protocoledBy]) byRad[o.protocoledBy] = { n: 0, totalMinutes: 0 }; // covers radiologists since removed
+      byRad[o.protocoledBy].n++;
+      byRad[o.protocoledBy].totalMinutes += minutes;
+    });
+    return byRad;
+  }
+
+  function statsRowsHtml(statsByName, emptyLabel) {
+    var names = Object.keys(statsByName).sort();
+    if (!names.length) return '<tr><td colspan="3" class="staff-empty">' + emptyLabel + '</td></tr>';
+    return names.map(function (name) {
+      var s = statsByName[name];
+      var avg = s.n ? fmtDuration(s.totalMinutes / s.n) : "—";
+      return '<tr><td>' + escapeHtml(name) + '</td><td>' + s.n + '</td><td>' + avg + '</td></tr>';
+    }).join("");
+  }
+
+  function renderStatsTab() {
+    if (!statsMonthInput.value) {
+      var now = new Date();
+      statsMonthInput.value = now.getFullYear() + "-" + (now.getMonth() + 1 < 10 ? "0" : "") + (now.getMonth() + 1);
+    }
+    techStatsBody.innerHTML = statsRowsHtml(computeTechStats(statsMonthInput.value), "No technologist accounts yet.");
+    radiologistStatsBody.innerHTML = statsRowsHtml(computeRadiologistStats(statsMonthInput.value), "No radiologist accounts yet.");
+  }
+  statsMonthInput.addEventListener("change", renderStatsTab);
 
   // ---- Staff management ----
 
@@ -2502,7 +2668,8 @@
       erDelayOrangeMinutes: SCHEDULING_SETTINGS.erDelayOrangeMinutes,
       erDelayRedMinutes: SCHEDULING_SETTINGS.erDelayRedMinutes,
       inpatientDelayOrangeMinutes: SCHEDULING_SETTINGS.inpatientDelayOrangeMinutes,
-      inpatientDelayRedMinutes: SCHEDULING_SETTINGS.inpatientDelayRedMinutes
+      inpatientDelayRedMinutes: SCHEDULING_SETTINGS.inpatientDelayRedMinutes,
+      doneOrdersRetentionDays: SCHEDULING_SETTINGS.doneOrdersRetentionDays
     };
     for (var k in partial) merged[k] = partial[k];
     return saveSchedulingSettings(merged);
@@ -4094,7 +4261,8 @@
           erDelayOrangeMinutes: (settings.erDelayOrangeMinutes > 0) ? settings.erDelayOrangeMinutes : 15,
           erDelayRedMinutes: (settings.erDelayRedMinutes > 0) ? settings.erDelayRedMinutes : 30,
           inpatientDelayOrangeMinutes: (settings.inpatientDelayOrangeMinutes > 0) ? settings.inpatientDelayOrangeMinutes : 60,
-          inpatientDelayRedMinutes: (settings.inpatientDelayRedMinutes > 0) ? settings.inpatientDelayRedMinutes : 120
+          inpatientDelayRedMinutes: (settings.inpatientDelayRedMinutes > 0) ? settings.inpatientDelayRedMinutes : 120,
+          doneOrdersRetentionDays: (settings.doneOrdersRetentionDays > 0) ? settings.doneOrdersRetentionDays : 180
         };
       }
       if (typeof logos === "string") {
