@@ -708,6 +708,14 @@
     <button id="addQueuePatientBtn" class="btn-new hidden">+ Add patient</button>
   </header>
 
+  <div class="day-nav">
+    <button type="button" id="queuePrevDayBtn" class="day-nav-btn" aria-label="Previous day">‹</button>
+    <button type="button" id="queueTodayBtn" class="day-nav-today">Today</button>
+    <div class="day-nav-label" id="queueDayNavLabel">Today</div>
+    <input type="date" id="queueDayDatePicker" class="day-nav-date" />
+    <button type="button" id="queueNextDayBtn" class="day-nav-btn" aria-label="Next day">›</button>
+  </div>
+
   <main class="list-wrap" style="max-width:720px;">
     <div class="board-column">
       <div class="board-column-head" style="color:#0B5FA5;background:#E5F1FB;">Waiting <span id="queueWaitingCount"></span></div>
@@ -1157,6 +1165,28 @@
             <button type="button" id="saveNoShowRetentionBtn" class="btn-submit">Save</button>
           </div>
         </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head"><h2>X-ray queue retention</h2></div>
+          <p class="field-hint" style="margin-bottom:10px;">
+            Controls how long a finished X-ray queue entry is kept before being permanently
+            removed. Waiting entries are never auto-purged, only finished ones.
+          </p>
+          <div class="field">
+            <label class="checkbox-field">
+              <input type="checkbox" id="queueDoneAutoPurgeInput" />
+              <span>Automatically permanently delete finished entries after the window</span>
+            </label>
+          </div>
+          <div class="field">
+            <label for="queueDoneRetentionDaysInput">Days to keep after finished</label>
+            <input id="queueDoneRetentionDaysInput" type="number" min="1" max="365" class="input" />
+          </div>
+          <div id="queueRetentionError" class="error-text hidden"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" id="saveQueueRetentionBtn" class="btn-submit">Save</button>
+          </div>
+        </div>
       </div>
 
       <div class="admin-card">
@@ -1457,7 +1487,8 @@
     noShowAutoPurge: true, noShowRetentionDays: 7,
     erDelayOrangeMinutes: 15, erDelayRedMinutes: 30,
     inpatientDelayOrangeMinutes: 60, inpatientDelayRedMinutes: 120,
-    doneOrdersRetentionDays: 180
+    doneOrdersRetentionDays: 180,
+    queueDoneAutoPurge: true, queueDoneRetentionDays: 30
   };
   function outpatientWorkStart() { return SCHEDULING_SETTINGS.workStart || DEFAULT_WORK_START; }
   function outpatientWorkEnd() { return SCHEDULING_SETTINGS.workEnd || DEFAULT_WORK_END; }
@@ -1529,7 +1560,8 @@
     formPriority: "OUTPATIENT",
     formContrast: false,
     loginRole: "RADIOLOGIST",
-    viewDate: null // ISO date string (YYYY-MM-DD), set to today during init
+    viewDate: null, // ISO date string (YYYY-MM-DD), set to today during init
+    queueViewDate: null // same idea, for the X-ray queue's own day-nav
   };
 
   // ---------- Helpers ----------
@@ -2001,8 +2033,27 @@
       });
   }
 
+  // Admin-configurable (Admin > Deleted orders > "X-ray queue retention"), same on/off +
+  // day-count shape as the CT order retention windows. Only DONE entries ever purge — a
+  // WAITING entry is always still relevant and is never auto-removed.
+  function queueDoneRetentionDays() { return SCHEDULING_SETTINGS.queueDoneRetentionDays || 30; }
+
+  function purgeExpiredQueueOnServer(list) {
+    if (SCHEDULING_SETTINGS.queueDoneAutoPurge === false) return;
+    var now = Date.now();
+    var expiredIds = list
+      .filter(function (e) {
+        if (e.status !== "DONE" || !e.doneAt) return false;
+        var ageDays = (now - new Date(e.doneAt).getTime()) / 86400000;
+        return ageDays >= queueDoneRetentionDays();
+      })
+      .map(function (e) { return e.id; });
+    expiredIds.forEach(function (id) { deleteQueueRow(id); });
+  }
+
   function syncQueueFromServer() {
     return fetchQueueFromServer().then(function (list) {
+      purgeExpiredQueueOnServer(list); // hard-delete finished entries past retention (fire-and-forget)
       state.queue = list;
       return list;
     });
@@ -2188,6 +2239,11 @@
   var queueFileNumberInput = $("queueFileNumberInput");
   var queuePatientNameInput = $("queuePatientNameInput");
   var queueFormError = $("queueFormError");
+  var queuePrevDayBtn = $("queuePrevDayBtn");
+  var queueTodayBtn = $("queueTodayBtn");
+  var queueDayNavLabel = $("queueDayNavLabel");
+  var queueDayDatePicker = $("queueDayDatePicker");
+  var queueNextDayBtn = $("queueNextDayBtn");
   var newOrderBtn = $("newOrderBtn");
   var modalOverlay = $("modalOverlay");
   var orderForm = $("orderForm");
@@ -2399,6 +2455,10 @@
   var noShowRetentionDaysInput = document.getElementById("noShowRetentionDaysInput");
   var noShowRetentionError = document.getElementById("noShowRetentionError");
   var saveNoShowRetentionBtn = document.getElementById("saveNoShowRetentionBtn");
+  var queueDoneAutoPurgeInput = document.getElementById("queueDoneAutoPurgeInput");
+  var queueDoneRetentionDaysInput = document.getElementById("queueDoneRetentionDaysInput");
+  var queueRetentionError = document.getElementById("queueRetentionError");
+  var saveQueueRetentionBtn = document.getElementById("saveQueueRetentionBtn");
   var deletedOrdersList = document.getElementById("deletedOrdersList");
   var adminTabStats = document.getElementById("adminTabStats");
   var statsMonthInput = document.getElementById("statsMonthInput");
@@ -2534,10 +2594,29 @@
     deletedOrdersRetentionDaysInput.value = deletedOrdersRetentionDays();
     noShowAutoPurgeInput.checked = SCHEDULING_SETTINGS.noShowAutoPurge !== false;
     noShowRetentionDaysInput.value = noShowRetentionDays();
+    queueDoneAutoPurgeInput.checked = SCHEDULING_SETTINGS.queueDoneAutoPurge !== false;
+    queueDoneRetentionDaysInput.value = queueDoneRetentionDays();
     doneRetentionError.classList.add("hidden");
     deletedRetentionError.classList.add("hidden");
     noShowRetentionError.classList.add("hidden");
+    queueRetentionError.classList.add("hidden");
   }
+
+  saveQueueRetentionBtn.addEventListener("click", function () {
+    var days = parseInt(queueDoneRetentionDaysInput.value, 10);
+    if (!days || days < 1 || days > 365) {
+      queueRetentionError.textContent = "Days must be a number between 1 and 365.";
+      queueRetentionError.classList.remove("hidden");
+      return;
+    }
+    queueRetentionError.classList.add("hidden");
+    persistSchedulingSettings({
+      queueDoneAutoPurge: queueDoneAutoPurgeInput.checked,
+      queueDoneRetentionDays: days
+    }).then(function () {
+      showToast("X-ray queue retention saved");
+    });
+  });
 
   saveDoneRetentionBtn.addEventListener("click", function () {
     var days = parseInt(doneOrdersRetentionDaysInput.value, 10);
@@ -2911,7 +2990,9 @@
       erDelayRedMinutes: SCHEDULING_SETTINGS.erDelayRedMinutes,
       inpatientDelayOrangeMinutes: SCHEDULING_SETTINGS.inpatientDelayOrangeMinutes,
       inpatientDelayRedMinutes: SCHEDULING_SETTINGS.inpatientDelayRedMinutes,
-      doneOrdersRetentionDays: SCHEDULING_SETTINGS.doneOrdersRetentionDays
+      doneOrdersRetentionDays: SCHEDULING_SETTINGS.doneOrdersRetentionDays,
+      queueDoneAutoPurge: SCHEDULING_SETTINGS.queueDoneAutoPurge,
+      queueDoneRetentionDays: SCHEDULING_SETTINGS.queueDoneRetentionDays
     };
     for (var k in partial) merged[k] = partial[k];
     return saveSchedulingSettings(merged);
@@ -4414,10 +4495,25 @@
     '</div>';
   }
 
+  // Which day a queue entry "belongs to" — the day reception added it, same anchor used for
+  // both Waiting and Finished so an entry doesn't jump to a different day's view just because
+  // it happened to get finished after midnight.
+  function queueDisplayDate(entry) {
+    return (entry.createdAt || "").slice(0, 10);
+  }
+
+  function renderQueueDayNav() {
+    queueDayNavLabel.textContent = fmtDayLabel(state.queueViewDate);
+    queueDayDatePicker.value = state.queueViewDate;
+    queueTodayBtn.classList.toggle("hidden", state.queueViewDate === todayISODate());
+  }
+
   function renderQueue() {
-    var waiting = state.queue.filter(function (e) { return e.status === "WAITING"; })
+    renderQueueDayNav();
+    var todaysEntries = state.queue.filter(function (e) { return queueDisplayDate(e) === state.queueViewDate; });
+    var waiting = todaysEntries.filter(function (e) { return e.status === "WAITING"; })
       .sort(function (a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
-    var finished = state.queue.filter(function (e) { return e.status === "DONE"; })
+    var finished = todaysEntries.filter(function (e) { return e.status === "DONE"; })
       .sort(function (a, b) { return new Date(b.doneAt) - new Date(a.doneAt); });
 
     queueWaitingCount.textContent = waiting.length ? "(" + waiting.length + ")" : "";
@@ -4462,6 +4558,25 @@
 
   queueLogoutBtn.addEventListener("click", logout);
 
+  queuePrevDayBtn.addEventListener("click", function () {
+    state.queueViewDate = shiftISODate(state.queueViewDate, -1);
+    renderQueue();
+  });
+  queueNextDayBtn.addEventListener("click", function () {
+    state.queueViewDate = shiftISODate(state.queueViewDate, 1);
+    renderQueue();
+  });
+  queueTodayBtn.addEventListener("click", function () {
+    state.queueViewDate = todayISODate();
+    renderQueue();
+  });
+  queueDayDatePicker.addEventListener("change", function () {
+    if (queueDayDatePicker.value) {
+      state.queueViewDate = queueDayDatePicker.value;
+      renderQueue();
+    }
+  });
+
   function openQueueForm() {
     queueFormError.classList.add("hidden");
     queueFileNumberInput.value = "";
@@ -4496,6 +4611,7 @@
       receptionBy: state.session.name
     };
     state.queue.push(entry);
+    state.queueViewDate = todayISODate(); // jump back to today so the new entry is actually visible
     renderQueue(); // optimistic
     upsertQueueRow(entry);
     showToast("Added to queue");
@@ -4637,7 +4753,9 @@
           erDelayRedMinutes: (settings.erDelayRedMinutes > 0) ? settings.erDelayRedMinutes : 30,
           inpatientDelayOrangeMinutes: (settings.inpatientDelayOrangeMinutes > 0) ? settings.inpatientDelayOrangeMinutes : 60,
           inpatientDelayRedMinutes: (settings.inpatientDelayRedMinutes > 0) ? settings.inpatientDelayRedMinutes : 120,
-          doneOrdersRetentionDays: (settings.doneOrdersRetentionDays > 0) ? settings.doneOrdersRetentionDays : 180
+          doneOrdersRetentionDays: (settings.doneOrdersRetentionDays > 0) ? settings.doneOrdersRetentionDays : 180,
+          queueDoneAutoPurge: settings.queueDoneAutoPurge !== false,
+          queueDoneRetentionDays: (settings.queueDoneRetentionDays > 0) ? settings.queueDoneRetentionDays : 30
         };
       }
       if (typeof logos === "string") {
@@ -4656,6 +4774,7 @@
     populateProtocols();
     populateDepartments();
     state.viewDate = todayISODate();
+    state.queueViewDate = todayISODate();
 
     // Load shared staff lists, instruction templates, and the logos before anything else, since
     // the login screen, worklist, and printed sheets all depend on them.
