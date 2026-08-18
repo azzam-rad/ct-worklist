@@ -52,7 +52,11 @@
   .login-sub { font-size: 12.5px; color: var(--sub); margin-bottom: 18px; }
   .login-footnote { font-size: 11px; color: var(--faint); margin-top: 14px; line-height: 1.5; }
 
-  .role-toggle { display: flex; gap: 6px; margin-bottom: 14px; }
+  .role-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+  .login-role-group-label {
+    font-size: 10px; font-weight: 700; color: var(--faint); text-transform: uppercase;
+    letter-spacing: 0.4px; margin-bottom: 5px;
+  }
   .role-option {
     flex: 1; padding: 9px 0; border-radius: 7px; border: 1px solid var(--line2); background: #fff;
     font-weight: 700; font-size: 12.5px; cursor: pointer; color: var(--sub);
@@ -248,6 +252,19 @@
   .order-row.delay-orange { border-color: #F2C94C; border-left: 4px solid var(--amber); background: #FFFDF5; }
   .order-row.delay-red { border-color: #F3B4AE; border-left: 4px solid var(--red); background: #FFFAF9; }
   .row-main { display: flex; align-items: center; gap: 8px; padding: 14px 16px; cursor: pointer; }
+
+  /* ---- X-ray queue cards — deliberately simpler than .order-row: no CT-specific fields
+     (protocol, priority, department), no expand/collapse, just file#/name/status/action. ---- */
+  .queue-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; padding: 14px 16px;
+  }
+  .queue-card.waiting { border-color: #F3B4AE; border-left: 4px solid var(--red); background: #FFF7F6; }
+  .queue-card.done { border-color: #A7D9BE; border-left: 4px solid var(--green); background: #F3FBF7; }
+  .queue-card-file { font-weight: 700; font-size: 14px; font-family: var(--mono); }
+  .queue-card-name { font-size: 13px; color: #3A3F4B; margin-top: 2px; }
+  .queue-card-meta { font-size: 11.5px; color: var(--faint); margin-top: 3px; }
+  .queue-card-actions { display: flex; gap: 8px; flex: 0 0 auto; }
 
   /* Desktop column widths, shared between header row and data rows */
   .cell-priority { flex: 0 0 88px; }
@@ -448,11 +465,21 @@
   <form id="loginForm" class="login-card">
     <div class="logo-mark">CT</div>
     <div class="login-title">CT Worklist — Sign in</div>
-    <div class="login-sub">Radiologists enter and accept requests. Techs move cases through the workflow.</div>
+    <div class="login-sub">Sign in to the system you work with.</div>
 
+    <div class="login-role-group-label">CT Worklist</div>
     <div class="role-toggle" id="roleToggle">
       <button type="button" class="role-option active" data-role="RADIOLOGIST">Radiologist</button>
       <button type="button" class="role-option" data-role="TECH">Technologist</button>
+    </div>
+
+    <div class="login-role-group-label">X-ray Queue</div>
+    <div class="role-toggle" id="roleToggleQueue">
+      <button type="button" class="role-option" data-role="XRAY">X-ray</button>
+      <button type="button" class="role-option" data-role="RECEPTION">Reception</button>
+    </div>
+
+    <div class="role-toggle" id="roleToggleAdmin" style="margin-bottom:14px;">
       <button type="button" class="role-option" data-role="ADMIN">Admin</button>
     </div>
 
@@ -664,6 +691,70 @@
   </form>
 </div>
 
+<!-- ============ X-RAY QUEUE (XRAY / RECEPTION roles) ============ -->
+<div id="queueApp" class="hidden">
+  <header>
+    <div class="header-left">
+      <div class="logo-mark">XR</div>
+      <div>
+        <div class="title">X-ray Queue</div>
+        <div class="subtitle">Reception adds patients · X-ray techs mark them finished</div>
+      </div>
+    </div>
+    <div class="user-block">
+      <span id="queueUserName" class="user-name"></span><span id="queueUserRoleTag" class="role-tag"></span>
+      <button id="queueLogoutBtn" class="btn-ghost">Log out</button>
+    </div>
+    <button id="addQueuePatientBtn" class="btn-new hidden">+ Add patient</button>
+  </header>
+
+  <main class="list-wrap" style="max-width:720px;">
+    <div class="board-column">
+      <div class="board-column-head" style="color:#0B5FA5;background:#E5F1FB;">Waiting <span id="queueWaitingCount"></span></div>
+      <div id="queueWaitingList" class="board-column-body"></div>
+      <div id="queueWaitingEmpty" class="empty-state hidden">
+        <div class="empty-title">No patients waiting</div>
+        <div class="empty-body">The queue is empty.</div>
+      </div>
+    </div>
+
+    <div id="queueFinishedSection" class="done-section hidden" style="margin-top:18px;">
+      <button type="button" id="queueFinishedToggleBtn" class="done-toggle-btn">
+        <span id="queueFinishedTitle">✓ Finished</span>
+        <span id="queueFinishedChevron" class="chevron">▼</span>
+      </button>
+      <div id="queueFinishedList" class="done-list hidden"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ ADD PATIENT TO QUEUE MODAL (Reception only) ============ -->
+<div id="queueModalOverlay" class="modal-overlay hidden">
+  <form id="queueForm" class="modal-card">
+    <div class="modal-header">
+      <span>Add patient to X-ray queue</span>
+      <button type="button" id="queueModalClose" class="modal-close">✕</button>
+    </div>
+
+    <div class="field">
+      <label for="queueFileNumberInput">Patient file number</label>
+      <input id="queueFileNumberInput" class="input" placeholder="e.g. 0042817" />
+    </div>
+
+    <div class="field">
+      <label for="queuePatientNameInput">Patient name (optional)</label>
+      <input id="queuePatientNameInput" class="input" placeholder="e.g. Mohammed Al-Saud" />
+    </div>
+
+    <div id="queueFormError" class="error-text hidden"></div>
+
+    <div class="modal-actions">
+      <button type="button" id="queueCancelBtn" class="btn-cancel">Cancel</button>
+      <button type="submit" class="btn-submit">Add to queue</button>
+    </div>
+  </form>
+</div>
+
 <!-- ============ ADMIN DASHBOARD ============ -->
 <div id="adminApp" class="hidden">
   <header>
@@ -710,6 +801,22 @@
             <button type="button" class="btn-small primary" data-action="add-staff" data-role="TECH">+ Add technologist</button>
           </div>
           <div id="techList" class="staff-list"></div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <h2>X-ray technologists</h2>
+            <button type="button" class="btn-small primary" data-action="add-staff" data-role="XRAY">+ Add X-ray tech</button>
+          </div>
+          <div id="xrayTechList" class="staff-list"></div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <h2>Receptionists</h2>
+            <button type="button" class="btn-small primary" data-action="add-staff" data-role="RECEPTION">+ Add receptionist</button>
+          </div>
+          <div id="receptionistList" class="staff-list"></div>
         </div>
       </div>
     </section>
@@ -1399,6 +1506,8 @@
   // views this file's source, or who is logged in as Admin, can see these values.
   var RADIOLOGISTS = [];
   var TECHS = [];
+  var XRAY_TECHS = [];
+  var RECEPTIONISTS = [];
 
   // The Admin account is fixed in this file (not editable through the UI, since there's only
   // ever meant to be one). Change the password here directly if you need to.
@@ -1410,6 +1519,7 @@
 
   var state = {
     orders: [],
+    queue: [], // X-ray queue entries — separate from CT orders, see XRAY/RECEPTION shell below
     session: null, // { name, role }
     filterPriority: "ALL",
     filterStatus: "ACTIVE",
@@ -1826,6 +1936,78 @@
     });
   }
 
+  // ---- X-ray queue: a separate, much simpler workflow from CT orders (see XRAY/RECEPTION
+  // shell below) — reception adds a patient by file number, the patient waits, an X-ray tech
+  // marks them finished. Own Supabase table ("xray_queue"), same id+data-blob row shape as
+  // "orders", so it needs the same table/grants set up in Supabase before it'll work — see the
+  // deployment notes.
+  function fetchQueueFromServer() {
+    if (!apiConfigured()) return Promise.resolve(state.queue);
+    var url = SUPABASE_URL + "/rest/v1/xray_queue?select=id,data";
+    return fetch(url, { method: "GET", headers: supabaseHeaders(), cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        return res.json();
+      })
+      .then(function (rows) {
+        var list = rows.map(function (row) {
+          var entry = row.data || {};
+          entry.id = row.id;
+          return entry;
+        });
+        hideConnectionWarning();
+        return list;
+      })
+      .catch(function (err) {
+        console.error("Failed to load X-ray queue from server:", err);
+        showConnectionWarning("Couldn't reach the shared server. Showing the last data loaded on this device.");
+        return state.queue;
+      });
+  }
+
+  function upsertQueueRow(entry) {
+    if (!apiConfigured()) {
+      showConnectionWarning("Shared storage isn't set up yet — changes will not be saved or shared.");
+      return Promise.resolve();
+    }
+    var url = SUPABASE_URL + "/rest/v1/xray_queue?on_conflict=id";
+    var row = { id: entry.id, data: entry, updated_at: new Date().toISOString() };
+    return fetch(url, {
+      method: "POST",
+      headers: supabaseHeaders({ "Prefer": "resolution=merge-duplicates,return=minimal" }),
+      body: JSON.stringify(row)
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        hideConnectionWarning();
+      })
+      .catch(function (err) {
+        console.error("Failed to save queue entry to server:", err);
+        showConnectionWarning("Couldn't save your last change to the shared server. Check your internet connection.");
+      });
+  }
+
+  function deleteQueueRow(id) {
+    if (!apiConfigured()) return Promise.resolve();
+    var url = SUPABASE_URL + "/rest/v1/xray_queue?id=eq." + encodeURIComponent(id);
+    return fetch(url, { method: "DELETE", headers: supabaseHeaders({ "Prefer": "return=minimal" }) })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        hideConnectionWarning();
+      })
+      .catch(function (err) {
+        console.error("Failed to delete queue entry on server:", err);
+        showConnectionWarning("Couldn't delete that entry on the shared server. Check your internet connection.");
+      });
+  }
+
+  function syncQueueFromServer() {
+    return fetchQueueFromServer().then(function (list) {
+      state.queue = list;
+      return list;
+    });
+  }
+
   // ---- Single-row JSON collections: radiologists, techs, instructions, branding ----
 
   function fetchSingleRow(table, fallback) {
@@ -1895,9 +2077,13 @@
 
   function fetchRadiologists() { return fetchSingleRow("radiologists", RADIOLOGISTS); }
   function fetchTechs() { return fetchSingleRow("techs", TECHS); }
+  function fetchXrayTechs() { return fetchSingleRow("xray_techs", XRAY_TECHS); }
+  function fetchReceptionists() { return fetchSingleRow("receptionists", RECEPTIONISTS); }
   function fetchInstructions() { return fetchSingleRow("instructions", SHARED_INSTRUCTIONS); }
   function saveRadiologists(list) { RADIOLOGISTS = list; return saveSingleRow("radiologists", list); }
   function saveTechs(list) { TECHS = list; return saveSingleRow("techs", list); }
+  function saveXrayTechs(list) { XRAY_TECHS = list; return saveSingleRow("xray_techs", list); }
+  function saveReceptionists(list) { RECEPTIONISTS = list; return saveSingleRow("receptionists", list); }
   function saveInstructions(obj) { SHARED_INSTRUCTIONS = obj; return saveSingleRow("instructions", obj); }
   function fetchLogos() { return fetchSingleRow("branding", { left: LOGO_LEFT_DATA_URL, right: LOGO_RIGHT_DATA_URL }); }
   function saveLogos(logos) {
@@ -1947,6 +2133,9 @@
   var app = $("app");
   var loginForm = $("loginForm");
   var roleToggle = $("roleToggle");
+  var roleToggleQueue = $("roleToggleQueue");
+  var roleToggleAdmin = $("roleToggleAdmin");
+  var allRoleOptionBtns = document.querySelectorAll("#loginForm .role-option");
   var loginName = $("loginName");
   var loginPassword = $("loginPassword");
   var loginError = $("loginError");
@@ -1979,6 +2168,26 @@
   var noShowSection = $("noShowSection");
   var noShowList = $("noShowList");
   var noShowCount = $("noShowCount");
+  var queueApp = $("queueApp");
+  var queueUserName = $("queueUserName");
+  var queueUserRoleTag = $("queueUserRoleTag");
+  var queueLogoutBtn = $("queueLogoutBtn");
+  var addQueuePatientBtn = $("addQueuePatientBtn");
+  var queueWaitingList = $("queueWaitingList");
+  var queueWaitingEmpty = $("queueWaitingEmpty");
+  var queueWaitingCount = $("queueWaitingCount");
+  var queueFinishedSection = $("queueFinishedSection");
+  var queueFinishedList = $("queueFinishedList");
+  var queueFinishedTitle = $("queueFinishedTitle");
+  var queueFinishedToggleBtn = $("queueFinishedToggleBtn");
+  var queueFinishedChevron = $("queueFinishedChevron");
+  var queueModalOverlay = $("queueModalOverlay");
+  var queueForm = $("queueForm");
+  var queueModalClose = $("queueModalClose");
+  var queueCancelBtn = $("queueCancelBtn");
+  var queueFileNumberInput = $("queueFileNumberInput");
+  var queuePatientNameInput = $("queuePatientNameInput");
+  var queueFormError = $("queueFormError");
   var newOrderBtn = $("newOrderBtn");
   var modalOverlay = $("modalOverlay");
   var orderForm = $("orderForm");
@@ -2039,6 +2248,8 @@
   function accountListForRole(role) {
     if (role === "TECH") return TECHS;
     if (role === "ADMIN") return ADMINS;
+    if (role === "XRAY") return XRAY_TECHS;
+    if (role === "RECEPTION") return RECEPTIONISTS;
     return RADIOLOGISTS;
   }
 
@@ -2053,10 +2264,10 @@
     });
   }
 
-  Array.prototype.forEach.call(roleToggle.children, function (btn) {
+  Array.prototype.forEach.call(allRoleOptionBtns, function (btn) {
     btn.addEventListener("click", function () {
       state.loginRole = btn.getAttribute("data-role");
-      Array.prototype.forEach.call(roleToggle.children, function (b) { b.classList.toggle("active", b === btn); });
+      Array.prototype.forEach.call(allRoleOptionBtns, function (b) { b.classList.toggle("active", b === btn); });
       populateLoginNames();
       loginError.classList.add("hidden");
     });
@@ -2081,6 +2292,13 @@
       showAdminShell();
       return;
     }
+    if (state.loginRole === "XRAY" || state.loginRole === "RECEPTION") {
+      showQueueShell();
+      syncQueueFromServer().then(function () {
+        renderQueue();
+      });
+      return;
+    }
 
     showAppShell();
     syncOrdersFromServer().then(function () {
@@ -2094,6 +2312,7 @@
     loginPassword.value = "";
     app.classList.add("hidden");
     document.getElementById("adminApp").classList.add("hidden");
+    queueApp.classList.add("hidden");
     loginScreen.classList.remove("hidden");
   }
 
@@ -2120,6 +2339,8 @@
   var adminTabInstructions = document.getElementById("adminTabInstructions");
   var radiologistListEl = document.getElementById("radiologistList");
   var techListEl = document.getElementById("techList");
+  var xrayTechListEl = document.getElementById("xrayTechList");
+  var receptionistListEl = document.getElementById("receptionistList");
   var nonContrastEnInput = document.getElementById("nonContrastEnInput");
   var nonContrastArInput = document.getElementById("nonContrastArInput");
   var nonContrastInstrError = document.getElementById("nonContrastInstrError");
@@ -2502,10 +2723,35 @@
   statsMonthInput.addEventListener("change", renderStatsTab);
 
   // ---- Staff management ----
+  // Generic across all four staff-manageable roles (RADIOLOGIST/TECH/XRAY/RECEPTION — ADMIN is
+  // fixed in code, not managed here). listForStaffRole()/saveFnForStaffRole() are the single
+  // place that maps a role to its backing array/save function; add a new role there (and to
+  // accountListForRole() for login) rather than adding another branch everywhere else.
+
+  function listForStaffRole(role) {
+    if (role === "TECH") return TECHS;
+    if (role === "XRAY") return XRAY_TECHS;
+    if (role === "RECEPTION") return RECEPTIONISTS;
+    return RADIOLOGISTS;
+  }
+  function saveFnForStaffRole(role) {
+    if (role === "TECH") return saveTechs;
+    if (role === "XRAY") return saveXrayTechs;
+    if (role === "RECEPTION") return saveReceptionists;
+    return saveRadiologists;
+  }
+  function staffRoleLabel(role) {
+    if (role === "TECH") return "technologist";
+    if (role === "XRAY") return "X-ray technologist";
+    if (role === "RECEPTION") return "receptionist";
+    return "radiologist";
+  }
 
   function renderStaffLists() {
     renderStaffListInto(radiologistListEl, RADIOLOGISTS, "RADIOLOGIST");
     renderStaffListInto(techListEl, TECHS, "TECH");
+    renderStaffListInto(xrayTechListEl, XRAY_TECHS, "XRAY");
+    renderStaffListInto(receptionistListEl, RECEPTIONISTS, "RECEPTION");
   }
 
   function renderStaffListInto(container, list, role) {
@@ -2528,11 +2774,11 @@
     adminState.editingStaffRole = role;
     adminState.editingStaffName = existingName || null;
     staffFormError.classList.add("hidden");
-    var roleLabel = role === "TECH" ? "technologist" : "radiologist";
+    var roleLabel = staffRoleLabel(role);
     staffModalTitle.textContent = existingName ? ("Edit " + roleLabel) : ("Add " + roleLabel);
 
     if (existingName) {
-      var list = role === "TECH" ? TECHS : RADIOLOGISTS;
+      var list = listForStaffRole(role);
       var person = list.filter(function (p) { return p.name === existingName; })[0];
       staffNameInput.value = person ? person.name : "";
       staffPasswordInput.value = person ? person.password : "";
@@ -2558,8 +2804,7 @@
     if (!password) { showStaffFormError("Password is required."); return; }
 
     var role = adminState.editingStaffRole;
-    var isTech = role === "TECH";
-    var list = (isTech ? TECHS : RADIOLOGISTS).slice();
+    var list = listForStaffRole(role).slice();
     var editingName = adminState.editingStaffName;
 
     var duplicate = list.some(function (p) { return p.name === name && p.name !== editingName; });
@@ -2571,8 +2816,7 @@
       list.push({ name: name, password: password });
     }
 
-    var saveFn = isTech ? saveTechs : saveRadiologists;
-    saveFn(list).then(function () {
+    saveFnForStaffRole(role)(list).then(function () {
       renderStaffLists();
       showToast(editingName ? "Account updated" : "Account added");
       closeStaffForm();
@@ -2597,10 +2841,8 @@
       openStaffForm(role, name);
     } else if (action === "delete-staff") {
       if (!window.confirm("Remove " + name + "? They will no longer be able to sign in.")) return;
-      var isTech = role === "TECH";
-      var list = (isTech ? TECHS : RADIOLOGISTS).filter(function (p) { return p.name !== name; });
-      var saveFn = isTech ? saveTechs : saveRadiologists;
-      saveFn(list).then(function () {
+      var list = listForStaffRole(role).filter(function (p) { return p.name !== name; });
+      saveFnForStaffRole(role)(list).then(function () {
         renderStaffLists();
         showToast("Account removed");
       });
@@ -4136,6 +4378,130 @@
     closeHoldReasonModal();
   });
 
+  // ---------- X-ray queue (XRAY / RECEPTION roles) ----------
+  //
+  // Deliberately its own small workflow, separate from CT orders: reception logs a patient by
+  // file number, the entry sits WAITING, an X-ray tech marks it DONE once the study is
+  // finished. No priorities, protocols, or contrast — just enough to queue and clear patients.
+
+  function showQueueShell() {
+    loginScreen.classList.add("hidden");
+    queueApp.classList.remove("hidden");
+    queueUserName.textContent = state.session.name;
+    queueUserRoleTag.textContent = state.session.role === "XRAY" ? "X-ray" : "Reception";
+    addQueuePatientBtn.classList.toggle("hidden", state.session.role !== "RECEPTION");
+  }
+
+  function queueCardHtml(entry) {
+    var role = state.session.role;
+    var actionsHtml = "";
+    if (role === "XRAY" && entry.status === "WAITING") {
+      actionsHtml += '<button type="button" class="btn-stage green" data-action="finish-queue" data-id="' + entry.id + '">✓ Finished</button>';
+    }
+    if (role === "RECEPTION" && entry.status === "WAITING") {
+      actionsHtml += '<button type="button" class="btn-small danger" data-action="remove-queue" data-id="' + entry.id + '">Remove</button>';
+    }
+    var metaHtml = entry.status === "DONE"
+      ? "Finished " + fmtTime(entry.doneAt) + (entry.xrayTech ? " · " + escapeHtml(entry.xrayTech) : "")
+      : "Added " + fmtTime(entry.createdAt) + " · " + minutesAgo(entry.createdAt) + "m ago" + (entry.receptionBy ? " · " + escapeHtml(entry.receptionBy) : "");
+    return '<div class="queue-card ' + (entry.status === "DONE" ? "done" : "waiting") + '">' +
+      '<div>' +
+        '<div class="queue-card-file">File #' + escapeHtml(entry.fileNumber) + '</div>' +
+        (entry.patientName ? '<div class="queue-card-name">' + escapeHtml(entry.patientName) + '</div>' : '') +
+        '<div class="queue-card-meta">' + metaHtml + '</div>' +
+      '</div>' +
+      (actionsHtml ? '<div class="queue-card-actions">' + actionsHtml + '</div>' : '') +
+    '</div>';
+  }
+
+  function renderQueue() {
+    var waiting = state.queue.filter(function (e) { return e.status === "WAITING"; })
+      .sort(function (a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
+    var finished = state.queue.filter(function (e) { return e.status === "DONE"; })
+      .sort(function (a, b) { return new Date(b.doneAt) - new Date(a.doneAt); });
+
+    queueWaitingCount.textContent = waiting.length ? "(" + waiting.length + ")" : "";
+    queueWaitingEmpty.classList.toggle("hidden", waiting.length !== 0);
+    queueWaitingList.innerHTML = waiting.map(queueCardHtml).join("");
+
+    queueFinishedSection.classList.toggle("hidden", finished.length === 0);
+    queueFinishedTitle.textContent = "✓ Finished (" + finished.length + ")";
+    queueFinishedList.innerHTML = finished.map(queueCardHtml).join("");
+  }
+
+  function handleQueueClick(e) {
+    var el = e.target.closest("[data-action]");
+    if (!el) return;
+    var action = el.getAttribute("data-action");
+    var id = el.getAttribute("data-id");
+
+    if (action === "finish-queue") {
+      var entry = state.queue.filter(function (q) { return q.id === id; })[0];
+      if (!entry) return;
+      entry.status = "DONE";
+      entry.doneAt = nowISO();
+      entry.xrayTech = state.session.name;
+      renderQueue(); // optimistic
+      upsertQueueRow(entry);
+      showToast("Marked finished");
+    } else if (action === "remove-queue") {
+      if (!window.confirm("Remove this patient from the queue?")) return;
+      state.queue = state.queue.filter(function (q) { return q.id !== id; });
+      renderQueue(); // optimistic
+      deleteQueueRow(id);
+      showToast("Removed from queue");
+    }
+  }
+  queueWaitingList.addEventListener("click", handleQueueClick);
+  queueFinishedList.addEventListener("click", handleQueueClick);
+
+  queueFinishedToggleBtn.addEventListener("click", function () {
+    queueFinishedList.classList.toggle("hidden");
+    queueFinishedChevron.textContent = queueFinishedList.classList.contains("hidden") ? "▼" : "▲";
+  });
+
+  queueLogoutBtn.addEventListener("click", logout);
+
+  function openQueueForm() {
+    queueFormError.classList.add("hidden");
+    queueFileNumberInput.value = "";
+    queuePatientNameInput.value = "";
+    queueModalOverlay.classList.remove("hidden");
+    queueFileNumberInput.focus();
+  }
+  function closeQueueForm() {
+    queueModalOverlay.classList.add("hidden");
+  }
+
+  addQueuePatientBtn.addEventListener("click", openQueueForm);
+  queueModalClose.addEventListener("click", closeQueueForm);
+  queueCancelBtn.addEventListener("click", closeQueueForm);
+  queueModalOverlay.addEventListener("click", function (e) { if (e.target === queueModalOverlay) closeQueueForm(); });
+
+  queueForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var fileNumber = queueFileNumberInput.value.trim();
+    if (!fileNumber) {
+      queueFormError.textContent = "Patient file number is required.";
+      queueFormError.classList.remove("hidden");
+      return;
+    }
+    queueFormError.classList.add("hidden");
+    var entry = {
+      id: uid(),
+      fileNumber: fileNumber,
+      patientName: queuePatientNameInput.value.trim(),
+      status: "WAITING",
+      createdAt: nowISO(),
+      receptionBy: state.session.name
+    };
+    state.queue.push(entry);
+    renderQueue(); // optimistic
+    upsertQueueRow(entry);
+    showToast("Added to queue");
+    closeQueueForm();
+  });
+
   // ---------- Top-level event wiring ----------
 
   loginForm.addEventListener("submit", attemptLogin);
@@ -4208,6 +4574,13 @@
       });
       return;
     }
+    if (state.session.role === "XRAY" || state.session.role === "RECEPTION") {
+      if (!queueModalOverlay.classList.contains("hidden")) return; // don't yank data out from under an open form
+      syncQueueFromServer().then(function () {
+        renderQueue();
+      });
+      return;
+    }
     if (!modalOverlay.classList.contains("hidden")) return; // don't yank data out from under an open form
     syncOrdersFromServer().then(function () {
       render();
@@ -4222,7 +4595,7 @@
   // settings never appear stale after logging out and back in (or reloading) — see
   // showAdminShell() below.
   function loadSharedDataFromServer() {
-    return Promise.all([fetchRadiologists(), fetchTechs(), fetchInstructions(), fetchLogos(), fetchSchedulingSettings()]).then(function (results) {
+    return Promise.all([fetchRadiologists(), fetchTechs(), fetchInstructions(), fetchLogos(), fetchSchedulingSettings(), fetchXrayTechs(), fetchReceptionists()]).then(function (results) {
       RADIOLOGISTS = Array.isArray(results[0]) ? results[0] : [];
       TECHS = Array.isArray(results[1]) ? results[1] : [];
       var instrResult = results[2];
@@ -4236,6 +4609,8 @@
       }
       var logos = results[3];
       var settings = results[4];
+      XRAY_TECHS = Array.isArray(results[5]) ? results[5] : [];
+      RECEPTIONISTS = Array.isArray(results[6]) ? results[6] : [];
       if (settings && typeof settings === "object") {
         SCHEDULING_SETTINGS = {
           bookingWindowDays: settings.bookingWindowDays || 30,
@@ -4292,6 +4667,13 @@
         state.loginRole = state.session.role;
         if (state.session.role === "ADMIN") {
           showAdminShell();
+          return;
+        }
+        if (state.session.role === "XRAY" || state.session.role === "RECEPTION") {
+          showQueueShell();
+          syncQueueFromServer().then(function () {
+            renderQueue();
+          });
           return;
         }
         showAppShell();
