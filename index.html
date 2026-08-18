@@ -533,7 +533,7 @@
   </div>
 
   <div class="toolbar">
-    <input id="searchInput" placeholder="Search patient name, file number, protocol, department, staff…" />
+    <input id="searchInput" placeholder="Search patient name, file number, protocol, department, staff…" autocomplete="off" />
     <div class="filter-group" id="priorityFilterGroup">
       <button class="chip active" data-priority="ALL">All types</button>
       <button class="chip" data-priority="ER">ER</button>
@@ -608,12 +608,12 @@
 
     <div class="field">
       <label for="fileNumber">Patient file number</label>
-      <input id="fileNumber" class="input" placeholder="e.g. 0042817" />
+      <input id="fileNumber" class="input" placeholder="e.g. 0042817" autocomplete="off" />
     </div>
 
     <div class="field">
       <label for="patientName">Patient name (optional)</label>
-      <input id="patientName" class="input" placeholder="e.g. Mohammed Al-Saud" />
+      <input id="patientName" class="input" placeholder="e.g. Mohammed Al-Saud" autocomplete="off" />
     </div>
 
     <div class="field" id="referralConfirmedField">
@@ -646,7 +646,7 @@
 
     <div class="field hidden" id="customProtocolField">
       <label for="customProtocol">Custom protocol name</label>
-      <input id="customProtocol" class="input" placeholder="Type protocol" />
+      <input id="customProtocol" class="input" placeholder="Type protocol" autocomplete="off" />
     </div>
 
     <div class="field hidden" id="appointmentField">
@@ -738,12 +738,12 @@
 
     <div class="field">
       <label for="queueFileNumberInput">Patient file number</label>
-      <input id="queueFileNumberInput" class="input" placeholder="e.g. 0042817" />
+      <input id="queueFileNumberInput" class="input" placeholder="e.g. 0042817" autocomplete="off" />
     </div>
 
     <div class="field">
       <label for="queuePatientNameInput">Patient name (optional)</label>
-      <input id="queuePatientNameInput" class="input" placeholder="e.g. Mohammed Al-Saud" />
+      <input id="queuePatientNameInput" class="input" placeholder="e.g. Mohammed Al-Saud" autocomplete="off" />
     </div>
 
     <div id="queueFormError" class="error-text hidden"></div>
@@ -977,7 +977,7 @@
           <div class="field" style="flex-direction:row;gap:10px;align-items:flex-end;">
             <div style="flex:1;">
               <label for="customProtocolNameInput">Protocol name</label>
-              <input id="customProtocolNameInput" type="text" class="input" placeholder="e.g. CT Wrist — Arthrogram with contrast" />
+              <input id="customProtocolNameInput" type="text" class="input" placeholder="e.g. CT Wrist — Arthrogram with contrast" autocomplete="off" />
             </div>
             <button type="button" id="addCustomProtocolBtn" class="btn-submit">Add</button>
           </div>
@@ -1027,7 +1027,7 @@
           <div class="field" style="flex-direction:row;gap:10px;align-items:flex-end;">
             <div style="flex:1;">
               <label for="customDeptNameInput">Department name</label>
-              <input id="customDeptNameInput" type="text" class="input" placeholder="e.g. Endocrinology" />
+              <input id="customDeptNameInput" type="text" class="input" placeholder="e.g. Endocrinology" autocomplete="off" />
             </div>
             <button type="button" id="addCustomDeptBtn" class="btn-submit">Add</button>
           </div>
@@ -1213,12 +1213,12 @@
 
     <div class="field">
       <label for="staffNameInput">Full name</label>
-      <input id="staffNameInput" class="input" placeholder="e.g. Dr. Mona Al-Rashid" />
+      <input id="staffNameInput" class="input" placeholder="e.g. Dr. Mona Al-Rashid" autocomplete="off" />
     </div>
 
     <div class="field">
       <label for="staffPasswordInput">Password</label>
-      <input id="staffPasswordInput" class="input" placeholder="Password for this account" />
+      <input id="staffPasswordInput" class="input" placeholder="Password for this account" autocomplete="new-password" />
     </div>
 
     <div id="staffFormError" class="error-text hidden"></div>
@@ -1266,7 +1266,7 @@
 
     <div class="field">
       <label for="holdReasonTextInput">Reason</label>
-      <input id="holdReasonTextInput" class="input" placeholder="e.g. Waiting on porter" />
+      <input id="holdReasonTextInput" class="input" placeholder="e.g. Waiting on porter" autocomplete="off" />
     </div>
 
     <div id="holdReasonFormError" class="error-text hidden"></div>
@@ -3017,7 +3017,7 @@
     protocolRenameList.innerHTML = allProtocolNames().map(function (p) {
       return '<div class="field">' +
         '<label>' + escapeHtml(p) + '</label>' +
-        '<input type="text" class="input" data-protocol-name="' + escapeHtml(p) + '" placeholder="' + escapeHtml(p) + '" value="' + escapeHtml(overrides[p] || "") + '" />' +
+        '<input type="text" class="input" autocomplete="off" data-protocol-name="' + escapeHtml(p) + '" placeholder="' + escapeHtml(p) + '" value="' + escapeHtml(overrides[p] || "") + '" />' +
       '</div>';
     }).join("");
   }
@@ -3184,7 +3184,7 @@
     deptRenameList.innerHTML = allDepartmentNames().map(function (d) {
       return '<div class="field">' +
         '<label>' + escapeHtml(d) + '</label>' +
-        '<input type="text" class="input" data-dept-name="' + escapeHtml(d) + '" placeholder="' + escapeHtml(d) + '" value="' + escapeHtml(overrides[d] || "") + '" />' +
+        '<input type="text" class="input" autocomplete="off" data-dept-name="' + escapeHtml(d) + '" placeholder="' + escapeHtml(d) + '" value="' + escapeHtml(overrides[d] || "") + '" />' +
       '</div>';
     }).join("");
   }
