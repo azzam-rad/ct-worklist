@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>CT Worklist</title>
+<title>AZ-Rad Management</title>
 <style>
   :root {
     --mono: 'SF Mono', 'Roboto Mono', Consolas, monospace;
@@ -147,14 +147,14 @@
     display: flex; gap: 10px; padding: 12px 20px; flex-wrap: wrap; align-items: center;
     background: #fff; border-bottom: 1px solid var(--line);
   }
-  #searchInput { flex: 1 1 280px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line2); font-size: 13px; background: var(--bg); }
+  #searchInput, #mriSearchInput { flex: 1 1 280px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line2); font-size: 13px; background: var(--bg); }
   .filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip {
     padding: 8px 12px; border-radius: 7px; border: 1px solid var(--line2); background: #fff;
     font-size: 12px; font-weight: 600; color: var(--grey); cursor: pointer;
   }
   .chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
-  #statusSelect { padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line2); font-size: 12px; font-weight: 600; color: #3A3F4B; background: #fff; }
+  #statusSelect, #mriStatusSelect { padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line2); font-size: 12px; font-weight: 600; color: #3A3F4B; background: #fff; }
 
   /* ---- List ---- */
   .list-wrap { padding: 16px 20px 60px; max-width: 1280px; margin: 0 auto; }
@@ -259,7 +259,9 @@
     display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
     background: #fff; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; padding: 14px 16px;
   }
-  .queue-card.waiting { border-color: #F3B4AE; border-left: 4px solid var(--red); background: #FFF7F6; }
+  .queue-card.blue { border-color: #BFDBFE; border-left: 4px solid var(--blue); background: #F5F9FD; }
+  .queue-card.red { border-color: #F3B4AE; border-left: 4px solid var(--red); background: #FFF7F6; }
+  .queue-card.orange { border-color: #F2C94C; border-left: 4px solid var(--amber); background: #FFFDF5; }
   .queue-card.done { border-color: #A7D9BE; border-left: 4px solid var(--green); background: #F3FBF7; }
   .queue-card-file { font-weight: 700; font-size: 14px; font-family: var(--mono); }
   .queue-card-name { font-size: 13px; color: #3A3F4B; margin-top: 2px; }
@@ -297,7 +299,7 @@
 
   /* Priority badge and chevron sit as a small top strip; everything else stacks below */
   .board-column .cell-priority { order: 1; flex: 0 0 auto; }
-  #outpatientList .cell-priority { display: none; } /* redundant — the column header already says "Outpatient" */
+  #outpatientList .cell-priority, #mriOutpatientList .cell-priority { display: none; } /* redundant — the column header already says "Outpatient" */
   .board-column .cell-chevron { order: 2; flex: 0 0 auto; margin-left: auto; }
   .board-column .cell-protocol { order: 3; flex: 1 1 100%; min-width: 100%; margin-top: 2px; }
   .board-column .cell-file { order: 4; flex: 1 1 45%; }
@@ -401,6 +403,10 @@
     flex: 1; padding: 9px 0; border-radius: 7px; border: 1px solid var(--line2); background: #fff;
     font-weight: 700; font-size: 12.5px; cursor: pointer; color: var(--sub);
   }
+  /* The CT order form's own priority/contrast toggles set active state via inline styles
+     (per-priority colors), but any other reuse of .priority-toggle (e.g. the staff modality
+     toggle) just wants a plain active state — this covers that case. */
+  .priority-option.active { background: var(--blue-bg); color: var(--blue); border-color: var(--blue); }
   .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
   .btn-cancel { border: 1px solid var(--line2); background: #fff; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #3A3F4B; cursor: pointer; }
   .btn-submit { border: none; background: var(--blue); border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #fff; cursor: pointer; }
@@ -440,6 +446,17 @@
   .stats-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
   .stats-table tr:last-child td { border-bottom: none; }
 
+  /* ---- Supervisor dashboard stat tiles ---- */
+  .stat-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+  .stat-tile {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px 18px;
+    flex: 1 1 110px; min-width: 100px;
+  }
+  .stat-tile .stat-value { font-size: 24px; font-weight: 700; font-family: var(--mono); line-height: 1.1; }
+  .stat-tile .stat-label { font-size: 10.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 3px; }
+  .stat-tile.warn .stat-value { color: var(--amber); }
+  .stat-tile.danger .stat-value { color: var(--red); }
+
   .variant-card {
     border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; background: #fff;
   }
@@ -463,14 +480,20 @@
 <!-- ============ LOGIN SCREEN ============ -->
 <div id="loginScreen" class="login-wrap">
   <form id="loginForm" class="login-card">
-    <div class="logo-mark">CT</div>
-    <div class="login-title">CT Worklist — Sign in</div>
+    <div class="logo-mark">AZ</div>
+    <div class="login-title">AZ-Rad Management — Sign in</div>
     <div class="login-sub">Sign in to the system you work with.</div>
 
     <div class="login-role-group-label">CT Worklist</div>
     <div class="role-toggle" id="roleToggle">
-      <button type="button" class="role-option active" data-role="RADIOLOGIST">Radiologist</button>
-      <button type="button" class="role-option" data-role="TECH">Technologist</button>
+      <button type="button" class="role-option active" data-role="RADIOLOGIST" data-modality="CT">Radiologist</button>
+      <button type="button" class="role-option" data-role="TECH" data-modality="CT">Technologist</button>
+    </div>
+
+    <div class="login-role-group-label">MRI Worklist</div>
+    <div class="role-toggle" id="roleToggleMri">
+      <button type="button" class="role-option" data-role="RADIOLOGIST" data-modality="MRI">Radiologist</button>
+      <button type="button" class="role-option" data-role="TECH" data-modality="MRI">Technologist</button>
     </div>
 
     <div class="login-role-group-label">X-ray Queue</div>
@@ -480,6 +503,7 @@
     </div>
 
     <div class="role-toggle" id="roleToggleAdmin" style="margin-bottom:14px;">
+      <button type="button" class="role-option" data-role="SUPERVISOR">Supervisor</button>
       <button type="button" class="role-option" data-role="ADMIN">Admin</button>
     </div>
 
@@ -510,15 +534,16 @@
 
   <header>
     <div class="header-left">
-      <div class="logo-mark">CT</div>
+      <div class="logo-mark">AZ</div>
       <div>
-        <div class="title">CT Worklist</div>
+        <div class="title">AZ-Rad Management</div>
         <div class="subtitle">Inpatient · ER · Outpatient</div>
       </div>
     </div>
     <div id="countPills" class="count-pills"></div>
     <div class="user-block">
       <span id="userName" class="user-name"></span><span id="userRoleTag" class="role-tag"></span>
+      <button id="switchToMriBtn" class="btn-ghost hidden">Switch to MRI</button>
       <button id="logoutBtn" class="btn-ghost">Log out</button>
     </div>
     <button id="newOrderBtn" class="btn-new hidden">+ New order</button>
@@ -763,13 +788,242 @@
   </form>
 </div>
 
+<!-- ============ SUPERVISOR DASHBOARD (read-only monitor, SUPERVISOR role) ============ -->
+<div id="supervisorApp" class="hidden">
+  <header>
+    <div class="header-left">
+      <div class="logo-mark">AZ</div>
+      <div>
+        <div class="title">Supervisor Dashboard</div>
+        <div class="subtitle">Live monitor — CT &amp; MRI worklists, X-ray queue</div>
+      </div>
+    </div>
+    <div class="user-block">
+      <span id="supervisorUserName" class="user-name"></span><span class="role-tag">Supervisor</span>
+      <button id="supervisorLogoutBtn" class="btn-ghost">Log out</button>
+    </div>
+  </header>
+
+  <main class="list-wrap" style="max-width:900px;">
+    <div class="th" style="margin-bottom:8px;">CT worklist — active today</div>
+    <div class="stat-grid" id="supervisorCtStats"></div>
+
+    <div id="supervisorCtDelayedEmpty" class="empty-state hidden" style="padding:20px 0;">
+      <div class="empty-title">No delayed ER/Inpatient orders right now</div>
+    </div>
+    <div style="overflow-x:auto;margin-top:10px;">
+      <table class="stats-table" id="supervisorCtDelayedTable">
+        <thead><tr><th>File #</th><th>Priority</th><th>Protocol</th><th>Status</th><th>Delayed</th></tr></thead>
+        <tbody id="supervisorCtDelayedTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="th" style="margin:22px 0 8px;">MRI worklist — active today</div>
+    <div class="stat-grid" id="supervisorMriStats"></div>
+
+    <div class="th" style="margin:22px 0 8px;">X-ray queue — today</div>
+    <div class="stat-grid" id="supervisorXrayStats"></div>
+
+    <div id="supervisorXrayEmpty" class="empty-state hidden">
+      <div class="empty-title">Nothing in the X-ray queue today</div>
+    </div>
+
+    <div style="overflow-x:auto;margin-top:10px;">
+      <table class="stats-table" id="supervisorXrayActiveTable">
+        <thead><tr><th>File #</th><th>Patient</th><th>Added</th><th>Waiting</th><th>Status</th></tr></thead>
+        <tbody id="supervisorXrayActiveTableBody"></tbody>
+      </table>
+    </div>
+
+    <div id="supervisorXrayFinishedSection" class="done-section hidden" style="margin-top:14px;">
+      <button type="button" id="supervisorXrayFinishedToggleBtn" class="done-toggle-btn">
+        <span id="supervisorXrayFinishedTitle">✓ Finished</span>
+        <span id="supervisorXrayFinishedChevron" class="chevron">▼</span>
+      </button>
+      <div id="supervisorXrayFinishedBody" class="done-list hidden" style="overflow-x:auto;">
+        <table class="stats-table">
+          <thead><tr><th>File #</th><th>Patient</th><th>Added</th><th>Waited</th><th>Finished</th></tr></thead>
+          <tbody id="supervisorXrayFinishedTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ MRI WORKLIST (Radiologist/Tech with MRI access) ============ -->
+<div id="mriApp" class="hidden">
+  <header>
+    <div class="header-left">
+      <div class="logo-mark">MR</div>
+      <div>
+        <div class="title">AZ-Rad Management — MRI</div>
+        <div class="subtitle">Inpatient · Outpatient</div>
+      </div>
+    </div>
+    <div id="mriCountPills" class="count-pills"></div>
+    <div class="user-block">
+      <span id="mriUserName" class="user-name"></span><span id="mriUserRoleTag" class="role-tag"></span>
+      <button id="mriSwitchToCtBtn" class="btn-ghost hidden">Switch to CT</button>
+      <button id="mriLogoutBtn" class="btn-ghost">Log out</button>
+    </div>
+    <button id="mriNewOrderBtn" class="btn-new hidden">+ New order</button>
+  </header>
+
+  <div class="day-nav">
+    <button type="button" id="mriPrevDayBtn" class="day-nav-btn" aria-label="Previous day">‹</button>
+    <button type="button" id="mriTodayBtn" class="day-nav-today">Today</button>
+    <div class="day-nav-label" id="mriDayNavLabel">Today</div>
+    <input type="date" id="mriDayDatePicker" class="day-nav-date" />
+    <button type="button" id="mriNextDayBtn" class="day-nav-btn" aria-label="Next day">›</button>
+  </div>
+
+  <div class="toolbar">
+    <input id="mriSearchInput" placeholder="Search patient name, file number, protocol, department, staff…" autocomplete="off" />
+    <div class="filter-group" id="mriPriorityFilterGroup">
+      <button class="chip active" data-priority="ALL">All types</button>
+      <button class="chip" data-priority="INPATIENT">Inpatient</button>
+      <button class="chip" data-priority="OUTPATIENT">Outpatient</button>
+    </div>
+    <select id="mriStatusSelect">
+      <option value="ACTIVE">Active only</option>
+      <option value="ALL">All statuses</option>
+      <option value="SCHEDULED">Scheduled</option>
+      <option value="ASKED_TO_SEND">Asked to send patient / Arrived</option>
+      <option value="DONE">Done</option>
+    </select>
+  </div>
+
+  <main class="list-wrap">
+    <div class="board-columns">
+      <section class="board-column" id="mriOutpatientColumn">
+        <div class="board-column-head outpatient">Outpatient</div>
+        <div id="mriOutpatientList" class="board-column-body"></div>
+        <div id="mriOutpatientEmpty" class="empty-state hidden">
+          <div class="empty-title">No outpatient appointments</div>
+          <div class="empty-body">Nothing scheduled for this view.</div>
+        </div>
+      </section>
+
+      <section class="board-column" id="mriInpatientColumn">
+        <div class="board-column-head inpatient-only">Inpatient</div>
+        <div id="mriInpatientList" class="board-column-body"></div>
+        <div id="mriInpatientEmpty" class="empty-state hidden">
+          <div class="empty-title">No Inpatient orders</div>
+          <div class="empty-body">Nothing scheduled for this view.</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ---- DONE SECTION (collapsible) ---- -->
+    <div id="mriDoneSection" class="done-section hidden">
+      <button type="button" id="mriDoneToggleBtn" class="done-toggle-btn">
+        <span id="mriDoneSectionTitle">✓ Done today</span>
+        <span id="mriDoneToggleChevron" class="chevron">▼</span>
+      </button>
+      <div id="mriDoneList" class="done-list hidden"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ MRI ORDER FORM MODAL (Tech creates; Radiologist can edit) ============ -->
+<div id="mriModalOverlay" class="modal-overlay hidden">
+  <form id="mriOrderForm" class="modal-card">
+    <div class="modal-header">
+      <span id="mriModalTitle">New MRI order</span>
+      <button type="button" id="mriModalClose" class="modal-close">✕</button>
+    </div>
+
+    <div class="field">
+      <label for="mriFileNumber">Patient file number</label>
+      <input id="mriFileNumber" class="input" placeholder="e.g. 0042817" autocomplete="off" />
+    </div>
+
+    <div class="field">
+      <label for="mriPatientName">Patient name (optional)</label>
+      <input id="mriPatientName" class="input" placeholder="e.g. Mohammed Al-Saud" autocomplete="off" />
+    </div>
+
+    <div class="field hidden" id="mriReferralConfirmedField">
+      <label class="checkbox-field">
+        <input type="checkbox" id="mriReferralConfirmed" />
+        <span>I confirmed the referring doctor's request exists</span>
+      </label>
+    </div>
+
+    <div class="field hidden" id="mriNeedsProtocolingField">
+      <label class="checkbox-field">
+        <input type="checkbox" id="mriNeedsProtocoling" />
+        <span>Needs protocoling — flag for radiologist review on appointment day</span>
+      </label>
+    </div>
+
+    <div class="field">
+      <label>Patient category</label>
+      <div class="priority-toggle" id="mriPriorityToggle">
+        <button type="button" class="priority-option" data-priority="INPATIENT">Inpatient</button>
+        <button type="button" class="priority-option" data-priority="OUTPATIENT">Outpatient</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="mriProtocolSelect">Study / protocol</label>
+      <select id="mriProtocolSelect" class="input"></select>
+    </div>
+
+    <div class="field hidden" id="mriCustomProtocolField">
+      <label for="mriCustomProtocol">Custom protocol name</label>
+      <input id="mriCustomProtocol" class="input" placeholder="Type protocol" autocomplete="off" />
+    </div>
+
+    <div class="field hidden" id="mriAppointmentField">
+      <label for="mriAppointmentDate">Appointment date</label>
+      <input id="mriAppointmentDate" type="date" class="input" />
+      <span class="field-hint" id="mriAppointmentWindowHint">Outpatient studies can be booked up to 1 month ahead.</span>
+    </div>
+
+    <div class="field hidden" id="mriAppointmentTimeField">
+      <label for="mriAppointmentTime">Appointment time</label>
+      <select id="mriAppointmentTime" class="input"></select>
+      <span class="field-hint" id="mriAppointmentTimeHint">Time slots are in 10-minute increments.</span>
+    </div>
+
+    <div class="field hidden" id="mriContrastField">
+      <label>Contrast enhanced?</label>
+      <div class="priority-toggle" id="mriContrastToggle">
+        <button type="button" class="priority-option" data-contrast="NO">Non-contrast</button>
+        <button type="button" class="priority-option" data-contrast="YES">Contrast enhanced</button>
+      </div>
+      <span class="field-hint">Contrast-enhanced studies count against the day's contrast quota (set by admin).</span>
+    </div>
+
+    <div class="field hidden" id="mriDateLoadSummary"></div>
+
+    <div class="field" id="mriReferringDeptField">
+      <label for="mriReferringDept">Referring department</label>
+      <select id="mriReferringDept" class="input"></select>
+    </div>
+
+    <div class="field">
+      <label for="mriNotesField">Clinical notes (optional)</label>
+      <textarea id="mriNotesField" class="input" placeholder="Indication, allergy flags, renal function, etc."></textarea>
+    </div>
+
+    <div id="mriFormError" class="error-text hidden"></div>
+
+    <div class="modal-actions">
+      <button type="button" id="mriCancelBtn" class="btn-cancel">Cancel</button>
+      <button type="submit" id="mriSubmitBtn" class="btn-submit">Add to worklist</button>
+    </div>
+  </form>
+</div>
+
 <!-- ============ ADMIN DASHBOARD ============ -->
 <div id="adminApp" class="hidden">
   <header>
     <div class="header-left">
-      <div class="logo-mark">CT</div>
+      <div class="logo-mark">AZ</div>
       <div>
-        <div class="title">CT Worklist — Admin</div>
+        <div class="title">AZ-Rad Management — Admin</div>
         <div class="subtitle">Manage staff accounts and patient instruction sheets</div>
       </div>
     </div>
@@ -788,6 +1042,7 @@
     <button class="admin-tab" data-tab="branding">Branding</button>
     <button class="admin-tab" data-tab="deleted">Deleted orders</button>
     <button class="admin-tab" data-tab="stats">Stats</button>
+    <button class="admin-tab" data-tab="mri">MRI</button>
   </div>
 
   <main class="admin-content">
@@ -825,6 +1080,14 @@
             <button type="button" class="btn-small primary" data-action="add-staff" data-role="RECEPTION">+ Add receptionist</button>
           </div>
           <div id="receptionistList" class="staff-list"></div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <h2>Supervisors</h2>
+            <button type="button" class="btn-small primary" data-action="add-staff" data-role="SUPERVISOR">+ Add supervisor</button>
+          </div>
+          <div id="supervisorList" class="staff-list"></div>
         </div>
       </div>
     </section>
@@ -1230,6 +1493,126 @@
       </div>
     </section>
 
+    <!-- ---- MRI TAB (mirrors CT's Scheduling/Protocols/Deleted-orders tabs, bundled here) ---- -->
+    <section id="adminTabMri" class="admin-panel hidden">
+      <div class="admin-col-grid" style="max-width:1080px;margin-bottom:16px;">
+        <div class="admin-card" style="max-width:520px;">
+          <div class="admin-card-head"><h2>MRI outpatient scheduling</h2></div>
+
+          <div class="field">
+            <label for="mriBookingWindowInput">Booking window (days ahead)</label>
+            <input id="mriBookingWindowInput" type="number" min="1" max="365" class="input" />
+            <span class="field-hint">How far in advance outpatient MRI appointments can be booked (1–365 days).</span>
+          </div>
+
+          <div class="field" style="display:flex;gap:14px;">
+            <div style="flex:1;">
+              <label for="mriWorkStartInput">Working hours — start</label>
+              <input id="mriWorkStartInput" type="time" step="600" class="input" />
+            </div>
+            <div style="flex:1;">
+              <label for="mriWorkEndInput">Working hours — end</label>
+              <input id="mriWorkEndInput" type="time" step="600" class="input" />
+            </div>
+          </div>
+          <span class="field-hint" id="mriWorkHoursHint" style="display:block;margin-top:-8px;margin-bottom:14px;">Only these hours can be picked as an MRI appointment time.</span>
+
+          <div class="field">
+            <label for="mriDailyContrastLimitInput">Max contrast-enhanced appointments per day</label>
+            <input id="mriDailyContrastLimitInput" type="number" min="0" class="input" placeholder="Leave blank for no limit" />
+          </div>
+
+          <div class="field">
+            <label class="checkbox-field">
+              <input type="checkbox" id="mriPreventDoubleBooking" />
+              <span>Prevent double-booking the same appointment slot</span>
+            </label>
+          </div>
+
+          <div id="mriSchedulingSettingsError" class="error-text hidden"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" id="saveMriSchedulingSettingsBtn" class="btn-submit">Save settings</button>
+          </div>
+        </div>
+
+        <div class="admin-card" style="max-width:520px;">
+          <div class="admin-card-head"><h2>MRI orders retention</h2></div>
+          <p class="field-hint" style="margin-bottom:10px;">
+            Controls how long completed and soft-deleted MRI orders are kept before being
+            permanently removed — same idea as the CT worklist's retention settings.
+          </p>
+
+          <div class="field">
+            <label for="mriDoneOrdersRetentionDaysInput">Days to keep completed (Done) orders</label>
+            <input id="mriDoneOrdersRetentionDaysInput" type="number" min="1" max="1825" class="input" />
+          </div>
+
+          <div class="field">
+            <label class="checkbox-field">
+              <input type="checkbox" id="mriDeletedOrdersAutoPurgeInput" />
+              <span>Automatically permanently delete after the recovery window</span>
+            </label>
+          </div>
+          <div class="field">
+            <label for="mriDeletedOrdersRetentionDaysInput">Days to keep deleted orders before permanent removal</label>
+            <input id="mriDeletedOrdersRetentionDaysInput" type="number" min="1" max="365" class="input" />
+          </div>
+
+          <div id="mriRetentionError" class="error-text hidden"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" id="saveMriRetentionBtn" class="btn-submit">Save retention</button>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head"><h2>Add custom MRI protocol</h2></div>
+          <p class="field-hint" style="margin-bottom:10px;">
+            Add a new named MRI study to the catalog — separate from the "Other / custom
+            protocol" free-text option staff can already type per order.
+          </p>
+          <div class="field" style="flex-direction:row;gap:10px;align-items:flex-end;">
+            <div style="flex:1;">
+              <label for="customMriProtocolNameInput">Protocol name</label>
+              <input id="customMriProtocolNameInput" type="text" class="input" placeholder="e.g. MRI Ankle — Without contrast" autocomplete="off" />
+            </div>
+            <button type="button" id="addCustomMriProtocolBtn" class="btn-submit">Add</button>
+          </div>
+          <div id="customMriProtocolError" class="error-text hidden"></div>
+          <div id="customMriProtocolList" class="staff-list" style="margin-top:10px;"></div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head"><h2>MRI protocols available on order form</h2></div>
+          <div id="enabledMriProtocolsChecklist" class="protocol-checklist"></div>
+          <div id="mriProtocolSettingsError" class="error-text hidden"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" id="saveEnabledMriProtocolsBtn" class="btn-submit">Save available protocols</button>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head"><h2>Rename MRI protocols</h2></div>
+          <p class="field-hint" style="margin-bottom:10px;">
+            Change how an MRI protocol's name is displayed everywhere. Leave a field blank to
+            use the default name.
+          </p>
+          <div id="mriProtocolRenameList" class="protocol-checklist" style="max-height:360px;"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" id="saveMriProtocolNamesBtn" class="btn-submit">Save protocol names</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <h2>Soft-deleted MRI orders</h2>
+        </div>
+        <div id="mriDeletedOrdersList">
+          <div class="staff-empty">No deleted MRI orders at the moment.</div>
+        </div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -1249,6 +1632,16 @@
     <div class="field">
       <label for="staffPasswordInput">Password</label>
       <input id="staffPasswordInput" class="input" placeholder="Password for this account" autocomplete="new-password" />
+    </div>
+
+    <div class="field hidden" id="staffModalityField">
+      <label>Worklist access</label>
+      <div class="priority-toggle" id="staffModalityToggle">
+        <button type="button" class="priority-option" data-modality="CT">CT only</button>
+        <button type="button" class="priority-option" data-modality="MRI">MRI only</button>
+        <button type="button" class="priority-option" data-modality="BOTH">Both</button>
+      </div>
+      <span class="field-hint">Which worklist(s) this person can sign into. Techs and Radiologists only.</span>
     </div>
 
     <div id="staffFormError" class="error-text hidden"></div>
@@ -1279,6 +1672,30 @@
 
     <div class="modal-actions">
       <button type="button" id="protocolCancelBtn" class="btn-cancel">Cancel</button>
+      <button type="submit" class="btn-submit">Submit protocol</button>
+    </div>
+  </form>
+</div>
+
+<!-- ============ MRI PROTOCOL SUBMISSION MODAL ============ -->
+<div id="mriProtocolModalOverlay" class="modal-overlay hidden">
+  <form id="mriProtocolForm" class="modal-card">
+    <div class="modal-header">
+      <span>Write protocol</span>
+      <button type="button" id="mriProtocolModalClose" class="modal-close">✕</button>
+    </div>
+
+    <div id="mriProtocolModalContext" class="field-hint" style="margin-bottom:10px;"></div>
+
+    <div class="field">
+      <label for="mriProtocolTextInput">Protocol</label>
+      <textarea id="mriProtocolTextInput" class="input" style="min-height:140px;" placeholder="e.g. MRI brain without contrast, standard sequences. Add contrast if enhancing lesion suspected."></textarea>
+    </div>
+
+    <div id="mriProtocolFormError" class="error-text hidden"></div>
+
+    <div class="modal-actions">
+      <button type="button" id="mriProtocolCancelBtn" class="btn-cancel">Cancel</button>
       <button type="submit" class="btn-submit">Submit protocol</button>
     </div>
   </form>
@@ -1396,6 +1813,63 @@
     return list;
   }
 
+  // ---- MRI protocol catalog — separate from CT's PROTOCOLS above, since MRI studies are
+  // named completely differently. Same admin pattern as CT (add custom / enable-disable /
+  // rename), just without the tech-ER/Inpatient-restriction subset — MRI has no ER, and techs
+  // create both Inpatient and Outpatient MRI orders freely (see MRI worklist shell below).
+  var MRI_CUSTOM_PROTOCOL_LABEL = "Other / custom protocol";
+  var MRI_BASE_PROTOCOLS = [
+    "MRI Brain — Without contrast", "MRI Brain — With and without contrast",
+    "MRI Brain — Stroke protocol", "MRI Brain — Seizure protocol", "MRI Pituitary — With and without contrast",
+    "MRI Orbits — With contrast", "MRI IACs — With contrast", "MRI Cervical Spine",
+    "MRI Thoracic Spine", "MRI Lumbar Spine", "MRI Whole Spine",
+    "MRI Shoulder", "MRI Knee", "MRI Hip", "MRI Wrist", "MRI Ankle",
+    "MRI Abdomen — With and without contrast", "MRI Pelvis — With and without contrast",
+    "MRI Prostate", "MRCP", "MR Enterography",
+    "MR Angiography — Brain", "MR Angiography — Neck", "MR Venography — Brain",
+    "MRI Breast — With contrast", "MRI Cardiac"
+  ];
+
+  function adminCustomMriProtocols() {
+    return Array.isArray(MRI_SETTINGS.customProtocols) ? MRI_SETTINGS.customProtocols : [];
+  }
+  function allMriProtocolNames() {
+    return MRI_BASE_PROTOCOLS.concat(adminCustomMriProtocols());
+  }
+  function activeEnabledMriProtocols() {
+    var catalog = allMriProtocolNames();
+    var configured = MRI_SETTINGS.enabledProtocols;
+    var list = (Array.isArray(configured) && configured.length)
+      ? catalog.filter(function (p) { return configured.indexOf(p) !== -1; })
+      : catalog.slice();
+    list.push(MRI_CUSTOM_PROTOCOL_LABEL);
+    return list;
+  }
+  function mriProtocolLabel(canonicalName) {
+    var overrides = MRI_SETTINGS.protocolLabels;
+    if (overrides && overrides[canonicalName]) return overrides[canonicalName];
+    return canonicalName;
+  }
+
+  var MRI_CONTRAST_PROTOCOLS = {
+    "MRI Brain — With and without contrast": true,
+    "MRI Pituitary — With and without contrast": true,
+    "MRI Orbits — With contrast": true,
+    "MRI IACs — With contrast": true,
+    "MRI Abdomen — With and without contrast": true,
+    "MRI Pelvis — With and without contrast": true,
+    "MRI Prostate": true,
+    "MR Angiography — Brain": true,
+    "MR Angiography — Neck": true,
+    "MR Venography — Brain": true,
+    "MRI Breast — With contrast": true,
+    "MRI Cardiac": true
+  };
+  function mriDefaultContrastFor(protocolName) {
+    if (Object.prototype.hasOwnProperty.call(MRI_CONTRAST_PROTOCOLS, protocolName)) return !!MRI_CONTRAST_PROTOCOLS[protocolName];
+    return guessContrastFromCustomText(protocolName);
+  }
+
   // Default contrast-enhanced guess per protocol, used only to pre-fill the "Contrast
   // enhanced?" toggle on the order form — staff can always override it before submitting.
   // Protocols not listed here (e.g. "Other / custom protocol") default to non-contrast.
@@ -1490,6 +1964,18 @@
     doneOrdersRetentionDays: 180,
     queueDoneAutoPurge: true, queueDoneRetentionDays: 30
   };
+
+  // MRI's own admin-configurable settings — deliberately a separate object from
+  // SCHEDULING_SETTINGS (own protocol catalog, own scheduling/retention rules), since MRI
+  // booking windows/hours/contrast limits are genuinely different from CT's in practice.
+  // Reuses CT's referring-department catalog (BASE_DEPARTMENTS etc.) rather than duplicating
+  // it — departments describe hospital referral sources, not a specific modality.
+  var MRI_SETTINGS = {
+    bookingWindowDays: 30, dailyContrastLimit: null, workStart: DEFAULT_WORK_START, workEnd: DEFAULT_WORK_END,
+    preventDoubleBooking: true, enabledProtocols: null, protocolLabels: null, customProtocols: null,
+    deletedOrdersAutoPurge: true, deletedOrdersRetentionDays: 7,
+    doneOrdersRetentionDays: 180
+  };
   function outpatientWorkStart() { return SCHEDULING_SETTINGS.workStart || DEFAULT_WORK_START; }
   function outpatientWorkEnd() { return SCHEDULING_SETTINGS.workEnd || DEFAULT_WORK_END; }
   // The display name for a protocol, honoring any admin rename (Admin > Protocols > Rename
@@ -1539,6 +2025,7 @@
   var TECHS = [];
   var XRAY_TECHS = [];
   var RECEPTIONISTS = [];
+  var SUPERVISORS = [];
 
   // The Admin account is fixed in this file (not editable through the UI, since there's only
   // ever meant to be one). Change the password here directly if you need to.
@@ -1551,7 +2038,8 @@
   var state = {
     orders: [],
     queue: [], // X-ray queue entries — separate from CT orders, see XRAY/RECEPTION shell below
-    session: null, // { name, role }
+    mriOrders: [], // MRI worklist orders — separate from CT orders, see MRI worklist shell below
+    session: null, // { name, role, modalityAccess }
     filterPriority: "ALL",
     filterStatus: "ACTIVE",
     search: "",
@@ -1560,8 +2048,17 @@
     formPriority: "OUTPATIENT",
     formContrast: false,
     loginRole: "RADIOLOGIST",
+    loginModality: "CT", // "CT" | "MRI" — which worklist section the user picked, for RADIOLOGIST/TECH logins
     viewDate: null, // ISO date string (YYYY-MM-DD), set to today during init
-    queueViewDate: null // same idea, for the X-ray queue's own day-nav
+    queueViewDate: null, // same idea, for the X-ray queue's own day-nav
+    mriViewDate: null, // same idea, for the MRI worklist's own day-nav
+    mriFilterPriority: "ALL",
+    mriFilterStatus: "ACTIVE",
+    mriSearch: "",
+    mriExpandedId: null,
+    mriEditingId: null,
+    mriFormPriority: "OUTPATIENT",
+    mriFormContrast: false
   };
 
   // ---------- Helpers ----------
@@ -1968,6 +2465,133 @@
     });
   }
 
+  // ---- MRI orders: a separate, simpler worklist from CT orders — Inpatient/Outpatient only
+  // (no ER), no printing, techs create orders for both priorities (see MRI worklist shell
+  // below). Own Supabase table ("mri_orders", same id+data-blob row shape as "orders") — needs
+  // the same manual table setup in Supabase before it'll work.
+  function fetchMriOrdersFromServer() {
+    if (!apiConfigured()) return Promise.resolve(state.mriOrders);
+    var url = SUPABASE_URL + "/rest/v1/mri_orders?select=id,data";
+    return fetch(url, { method: "GET", headers: supabaseHeaders(), cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        return res.json();
+      })
+      .then(function (rows) {
+        var list = rows.map(function (row) {
+          var order = row.data || {};
+          order.id = row.id;
+          return order;
+        });
+        hideConnectionWarning();
+        return purgeExpiredMri(list);
+      })
+      .catch(function (err) {
+        console.error("Failed to load MRI orders from server:", err);
+        showConnectionWarning("Couldn't reach the shared server. Showing the last data loaded on this device.");
+        return state.mriOrders;
+      });
+  }
+
+  function upsertMriOrderRow(order) {
+    if (!apiConfigured()) {
+      showConnectionWarning("Shared storage isn't set up yet — changes will not be saved or shared.");
+      return Promise.resolve();
+    }
+    var url = SUPABASE_URL + "/rest/v1/mri_orders?on_conflict=id";
+    var row = { id: order.id, data: order, updated_at: new Date().toISOString() };
+    return fetch(url, {
+      method: "POST",
+      headers: supabaseHeaders({ "Prefer": "resolution=merge-duplicates,return=minimal" }),
+      body: JSON.stringify(row)
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        hideConnectionWarning();
+      })
+      .catch(function (err) {
+        console.error("Failed to save MRI order to server:", err);
+        showConnectionWarning("Couldn't save your last change to the shared server. Check your internet connection.");
+      });
+  }
+
+  function deleteMriOrderRow(id) {
+    if (!apiConfigured()) return Promise.resolve();
+    var url = SUPABASE_URL + "/rest/v1/mri_orders?id=eq." + encodeURIComponent(id);
+    return fetch(url, { method: "DELETE", headers: supabaseHeaders({ "Prefer": "return=minimal" }) })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        hideConnectionWarning();
+      })
+      .catch(function (err) {
+        console.error("Failed to delete MRI order on server:", err);
+        showConnectionWarning("Couldn't delete that order on the shared server. Check your internet connection.");
+      });
+  }
+
+  function mriDoneOrdersRetentionDays() { return MRI_SETTINGS.doneOrdersRetentionDays || 180; }
+  function mriDeletedOrdersRetentionDays() { return MRI_SETTINGS.deletedOrdersRetentionDays || 7; }
+
+  function purgeExpiredMri(list) {
+    var now = Date.now();
+    return list.filter(function (o) {
+      if (o.status === "DONE") {
+        var completedAt = o.doneAt || o.createdAt;
+        var ageDays = (now - new Date(completedAt).getTime()) / 86400000;
+        return ageDays < mriDoneOrdersRetentionDays();
+      }
+      return true;
+    });
+  }
+
+  function purgeExpiredMriOnServer(list) {
+    var now = Date.now();
+    var expiredIds = list
+      .filter(function (o) {
+        if (o.status === "DONE") {
+          var completedAt = o.doneAt || o.createdAt;
+          var ageDays = (now - new Date(completedAt).getTime()) / 86400000;
+          return ageDays >= mriDoneOrdersRetentionDays();
+        }
+        if (o.deletedAt) {
+          if (MRI_SETTINGS.deletedOrdersAutoPurge === false) return false;
+          var daysSinceDeleted = (now - new Date(o.deletedAt).getTime()) / 86400000;
+          return daysSinceDeleted >= mriDeletedOrdersRetentionDays();
+        }
+        return false;
+      })
+      .map(function (o) { return o.id; });
+    expiredIds.forEach(function (id) { deleteMriOrderRow(id); });
+  }
+
+  // Same "abandoned order" cleanup as CT's autoSoftDeleteStale, just without the no-show/
+  // auto-revert layers (deferred for now — extend this the same way CT's was extended, see
+  // [[ct-worklist-order-lifecycle]] in memory if picking this up later).
+  var MRI_STALE_ORDER_HOURS = 24;
+  function autoSoftDeleteStaleMri(list) {
+    var now = Date.now();
+    return list.filter(function (o) {
+      if (o.deletedAt || (o.status !== "SCHEDULED" && o.status !== "ASKED_TO_SEND")) return false;
+      var dueAt = (o.priority === "OUTPATIENT" && o.appointmentDate)
+        ? new Date(o.appointmentDate + "T" + (o.appointmentTime || "23:59") + ":00").getTime()
+        : new Date(o.createdAt).getTime();
+      return (now - dueAt) / 3600000 >= MRI_STALE_ORDER_HOURS;
+    });
+  }
+
+  function syncMriOrdersFromServer() {
+    return fetchMriOrdersFromServer().then(function (list) {
+      purgeExpiredMriOnServer(list); // hard-delete rows past their retention window (fire-and-forget)
+      autoSoftDeleteStaleMri(list).forEach(function (o) {
+        o.deletedAt = nowISO();
+        o.deletedBy = "System — left unresolved";
+        upsertMriOrderRow(o); // persist the auto soft-delete (fire-and-forget)
+      });
+      state.mriOrders = list;
+      return list;
+    });
+  }
+
   // ---- X-ray queue: a separate, much simpler workflow from CT orders (see XRAY/RECEPTION
   // shell below) — reception adds a patient by file number, the patient waits, an X-ray tech
   // marks them finished. Own Supabase table ("xray_queue"), same id+data-blob row shape as
@@ -2130,11 +2754,13 @@
   function fetchTechs() { return fetchSingleRow("techs", TECHS); }
   function fetchXrayTechs() { return fetchSingleRow("xray_techs", XRAY_TECHS); }
   function fetchReceptionists() { return fetchSingleRow("receptionists", RECEPTIONISTS); }
+  function fetchSupervisors() { return fetchSingleRow("supervisors", SUPERVISORS); }
   function fetchInstructions() { return fetchSingleRow("instructions", SHARED_INSTRUCTIONS); }
   function saveRadiologists(list) { RADIOLOGISTS = list; return saveSingleRow("radiologists", list); }
   function saveTechs(list) { TECHS = list; return saveSingleRow("techs", list); }
   function saveXrayTechs(list) { XRAY_TECHS = list; return saveSingleRow("xray_techs", list); }
   function saveReceptionists(list) { RECEPTIONISTS = list; return saveSingleRow("receptionists", list); }
+  function saveSupervisors(list) { SUPERVISORS = list; return saveSingleRow("supervisors", list); }
   function saveInstructions(obj) { SHARED_INSTRUCTIONS = obj; return saveSingleRow("instructions", obj); }
   function fetchLogos() { return fetchSingleRow("branding", { left: LOGO_LEFT_DATA_URL, right: LOGO_RIGHT_DATA_URL }); }
   function saveLogos(logos) {
@@ -2147,13 +2773,18 @@
     SCHEDULING_SETTINGS = settings;
     return saveSingleRow("settings", settings);
   }
+  function fetchMriSettings() { return fetchSingleRow("mri_settings", MRI_SETTINGS); }
+  function saveMriSettings(settings) {
+    MRI_SETTINGS = settings;
+    return saveSingleRow("mri_settings", settings);
+  }
 
   function loadSession() {
     try {
       var raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return null;
       var saved = JSON.parse(raw);
-      var list = saved.role === "TECH" ? TECHS : saved.role === "ADMIN" ? ADMINS : RADIOLOGISTS;
+      var list = accountListForRole(saved.role);
       var ok = list.some(function (r) { return r.name === saved.name; });
       return ok ? saved : null;
     } catch (e) { return null; }
@@ -2220,6 +2851,24 @@
   var noShowList = $("noShowList");
   var noShowCount = $("noShowCount");
   var queueApp = $("queueApp");
+  var supervisorApp = $("supervisorApp");
+  var supervisorUserName = $("supervisorUserName");
+  var supervisorLogoutBtn = $("supervisorLogoutBtn");
+  var supervisorCtStats = $("supervisorCtStats");
+  var supervisorCtDelayedEmpty = $("supervisorCtDelayedEmpty");
+  var supervisorCtDelayedTable = $("supervisorCtDelayedTable");
+  var supervisorCtDelayedTableBody = $("supervisorCtDelayedTableBody");
+  var supervisorMriStats = $("supervisorMriStats");
+  var supervisorXrayStats = $("supervisorXrayStats");
+  var supervisorXrayEmpty = $("supervisorXrayEmpty");
+  var supervisorXrayActiveTable = $("supervisorXrayActiveTable");
+  var supervisorXrayActiveTableBody = $("supervisorXrayActiveTableBody");
+  var supervisorXrayFinishedSection = $("supervisorXrayFinishedSection");
+  var supervisorXrayFinishedTitle = $("supervisorXrayFinishedTitle");
+  var supervisorXrayFinishedToggleBtn = $("supervisorXrayFinishedToggleBtn");
+  var supervisorXrayFinishedChevron = $("supervisorXrayFinishedChevron");
+  var supervisorXrayFinishedBody = $("supervisorXrayFinishedBody");
+  var supervisorXrayFinishedTableBody = $("supervisorXrayFinishedTableBody");
   var queueUserName = $("queueUserName");
   var queueUserRoleTag = $("queueUserRoleTag");
   var queueLogoutBtn = $("queueLogoutBtn");
@@ -2254,6 +2903,13 @@
   var protocolModalContext = $("protocolModalContext");
   var protocolTextInput = $("protocolTextInput");
   var protocolFormError = $("protocolFormError");
+  var mriProtocolModalOverlay = $("mriProtocolModalOverlay");
+  var mriProtocolForm = $("mriProtocolForm");
+  var mriProtocolModalClose = $("mriProtocolModalClose");
+  var mriProtocolCancelBtn = $("mriProtocolCancelBtn");
+  var mriProtocolModalContext = $("mriProtocolModalContext");
+  var mriProtocolTextInput = $("mriProtocolTextInput");
+  var mriProtocolFormError = $("mriProtocolFormError");
   var holdReasonModalOverlay = $("holdReasonModalOverlay");
   var holdReasonForm = $("holdReasonForm");
   var holdReasonModalClose = $("holdReasonModalClose");
@@ -2287,6 +2943,65 @@
   var referringDeptSelect = $("referringDept");
   var notesField = $("notesField");
   var formError = $("formError");
+  var switchToMriBtn = $("switchToMriBtn");
+
+  // ---- MRI worklist shell + order form (mirrors the CT refs above) ----
+  var mriApp = $("mriApp");
+  var mriCountPills = $("mriCountPills");
+  var mriUserName = $("mriUserName");
+  var mriUserRoleTag = $("mriUserRoleTag");
+  var mriSwitchToCtBtn = $("mriSwitchToCtBtn");
+  var mriLogoutBtn = $("mriLogoutBtn");
+  var mriNewOrderBtn = $("mriNewOrderBtn");
+  var mriPrevDayBtn = $("mriPrevDayBtn");
+  var mriTodayBtn = $("mriTodayBtn");
+  var mriDayNavLabel = $("mriDayNavLabel");
+  var mriDayDatePicker = $("mriDayDatePicker");
+  var mriNextDayBtn = $("mriNextDayBtn");
+  var mriSearchInput = $("mriSearchInput");
+  var mriPriorityFilterGroup = $("mriPriorityFilterGroup");
+  var mriStatusSelect = $("mriStatusSelect");
+  var mriOutpatientList = $("mriOutpatientList");
+  var mriOutpatientEmpty = $("mriOutpatientEmpty");
+  var mriOutpatientColumn = $("mriOutpatientColumn");
+  var mriInpatientList = $("mriInpatientList");
+  var mriInpatientEmpty = $("mriInpatientEmpty");
+  var mriInpatientColumn = $("mriInpatientColumn");
+  var mriDoneSection = $("mriDoneSection");
+  var mriDoneToggleBtn = $("mriDoneToggleBtn");
+  var mriDoneSectionTitle = $("mriDoneSectionTitle");
+  var mriDoneToggleChevron = $("mriDoneToggleChevron");
+  var mriDoneList = $("mriDoneList");
+  var mriModalOverlay = $("mriModalOverlay");
+  var mriOrderForm = $("mriOrderForm");
+  var mriModalTitle = $("mriModalTitle");
+  var mriModalClose = $("mriModalClose");
+  var mriCancelBtn = $("mriCancelBtn");
+  var mriSubmitBtn = $("mriSubmitBtn");
+  var mriFileNumberInput = $("mriFileNumber");
+  var mriPatientNameInput = $("mriPatientName");
+  var mriReferralConfirmedField = $("mriReferralConfirmedField");
+  var mriReferralConfirmedInput = $("mriReferralConfirmed");
+  var mriNeedsProtocolingField = $("mriNeedsProtocolingField");
+  var mriNeedsProtocolingInput = $("mriNeedsProtocoling");
+  var mriPriorityToggle = $("mriPriorityToggle");
+  var mriProtocolSelect = $("mriProtocolSelect");
+  var mriCustomProtocolField = $("mriCustomProtocolField");
+  var mriCustomProtocolInput = $("mriCustomProtocol");
+  var mriAppointmentField = $("mriAppointmentField");
+  var mriAppointmentWindowHint = $("mriAppointmentWindowHint");
+  var mriAppointmentDateInput = $("mriAppointmentDate");
+  var mriAppointmentTimeField = $("mriAppointmentTimeField");
+  var mriAppointmentTimeInput = $("mriAppointmentTime");
+  var mriAppointmentTimeHint = $("mriAppointmentTimeHint");
+  var mriContrastField = $("mriContrastField");
+  var mriContrastToggle = $("mriContrastToggle");
+  var mriDateLoadSummary = $("mriDateLoadSummary");
+  var mriReferringDeptField = $("mriReferringDeptField");
+  var mriReferringDeptSelect = $("mriReferringDept");
+  var mriNotesField = $("mriNotesField");
+  var mriFormError = $("mriFormError");
+
   var toast = $("toast");
 
   // ---------- Toast ----------
@@ -2306,6 +3021,7 @@
     if (role === "ADMIN") return ADMINS;
     if (role === "XRAY") return XRAY_TECHS;
     if (role === "RECEPTION") return RECEPTIONISTS;
+    if (role === "SUPERVISOR") return SUPERVISORS;
     return RADIOLOGISTS;
   }
 
@@ -2323,6 +3039,8 @@
   Array.prototype.forEach.call(allRoleOptionBtns, function (btn) {
     btn.addEventListener("click", function () {
       state.loginRole = btn.getAttribute("data-role");
+      var modality = btn.getAttribute("data-modality");
+      state.loginModality = modality || "CT";
       Array.prototype.forEach.call(allRoleOptionBtns, function (b) { b.classList.toggle("active", b === btn); });
       populateLoginNames();
       loginError.classList.add("hidden");
@@ -2340,22 +3058,59 @@
       loginError.classList.remove("hidden");
       return;
     }
-    loginError.classList.add("hidden");
-    state.session = { name: match.name, role: state.loginRole };
-    saveSession(state.session);
-
     if (state.loginRole === "ADMIN") {
+      loginError.classList.add("hidden");
+      state.session = { name: match.name, role: state.loginRole, modalityAccess: match.modalityAccess || "CT" };
+      saveSession(state.session);
       showAdminShell();
       return;
     }
     if (state.loginRole === "XRAY" || state.loginRole === "RECEPTION") {
+      loginError.classList.add("hidden");
+      state.session = { name: match.name, role: state.loginRole, modalityAccess: match.modalityAccess || "CT" };
+      saveSession(state.session);
       showQueueShell();
       syncQueueFromServer().then(function () {
         renderQueue();
       });
       return;
     }
+    if (state.loginRole === "SUPERVISOR") {
+      loginError.classList.add("hidden");
+      state.session = { name: match.name, role: state.loginRole, modalityAccess: match.modalityAccess || "CT" };
+      saveSession(state.session);
+      showSupervisorShell();
+      refreshSupervisorDashboard();
+      return;
+    }
 
+    // Radiologist/Tech: which worklist login group the user actually clicked
+    // (state.loginModality) must be permitted by the account's modalityAccess —
+    // clicking "MRI Worklist" with a CT-only account (or vice versa) is refused,
+    // not silently redirected.
+    var access = match.modalityAccess || "CT";
+    var requested = state.loginModality || "CT";
+    if (requested === "MRI" && access !== "MRI" && access !== "BOTH") {
+      loginError.textContent = "This account doesn't have MRI Worklist access.";
+      loginError.classList.remove("hidden");
+      return;
+    }
+    if (requested === "CT" && access !== "CT" && access !== "BOTH") {
+      loginError.textContent = "This account doesn't have CT Worklist access.";
+      loginError.classList.remove("hidden");
+      return;
+    }
+    loginError.classList.add("hidden");
+    state.session = { name: match.name, role: state.loginRole, modalityAccess: access };
+    saveSession(state.session);
+
+    if (requested === "MRI") {
+      showMriShell();
+      syncMriOrdersFromServer().then(function () {
+        renderMri();
+      });
+      return;
+    }
     showAppShell();
     syncOrdersFromServer().then(function () {
       render();
@@ -2369,6 +3124,8 @@
     app.classList.add("hidden");
     document.getElementById("adminApp").classList.add("hidden");
     queueApp.classList.add("hidden");
+    supervisorApp.classList.add("hidden");
+    mriApp.classList.add("hidden");
     loginScreen.classList.remove("hidden");
   }
 
@@ -2378,6 +3135,7 @@
     userName.textContent = state.session.name;
     userRoleTag.textContent = state.session.role === "TECH" ? "Tech" : "Radiologist";
     newOrderBtn.classList.remove("hidden");
+    switchToMriBtn.classList.toggle("hidden", state.session.modalityAccess !== "BOTH");
   }
 
   function enterApp() {
@@ -2397,6 +3155,7 @@
   var techListEl = document.getElementById("techList");
   var xrayTechListEl = document.getElementById("xrayTechList");
   var receptionistListEl = document.getElementById("receptionistList");
+  var supervisorListEl = document.getElementById("supervisorList");
   var nonContrastEnInput = document.getElementById("nonContrastEnInput");
   var nonContrastArInput = document.getElementById("nonContrastArInput");
   var nonContrastInstrError = document.getElementById("nonContrastInstrError");
@@ -2464,6 +3223,32 @@
   var statsMonthInput = document.getElementById("statsMonthInput");
   var techStatsBody = document.getElementById("techStatsBody");
   var radiologistStatsBody = document.getElementById("radiologistStatsBody");
+
+  // ---- MRI admin tab refs ----
+  var adminTabMri = document.getElementById("adminTabMri");
+  var mriBookingWindowInput = document.getElementById("mriBookingWindowInput");
+  var mriWorkStartInput = document.getElementById("mriWorkStartInput");
+  var mriWorkEndInput = document.getElementById("mriWorkEndInput");
+  var mriWorkHoursHint = document.getElementById("mriWorkHoursHint");
+  var mriDailyContrastLimitInput = document.getElementById("mriDailyContrastLimitInput");
+  var mriPreventDoubleBookingInput = document.getElementById("mriPreventDoubleBooking");
+  var mriSchedulingSettingsError = document.getElementById("mriSchedulingSettingsError");
+  var saveMriSchedulingSettingsBtn = document.getElementById("saveMriSchedulingSettingsBtn");
+  var mriDoneOrdersRetentionDaysInput = document.getElementById("mriDoneOrdersRetentionDaysInput");
+  var mriDeletedOrdersAutoPurgeInput = document.getElementById("mriDeletedOrdersAutoPurgeInput");
+  var mriDeletedOrdersRetentionDaysInput = document.getElementById("mriDeletedOrdersRetentionDaysInput");
+  var mriRetentionError = document.getElementById("mriRetentionError");
+  var saveMriRetentionBtn = document.getElementById("saveMriRetentionBtn");
+  var customMriProtocolNameInput = document.getElementById("customMriProtocolNameInput");
+  var addCustomMriProtocolBtn = document.getElementById("addCustomMriProtocolBtn");
+  var customMriProtocolError = document.getElementById("customMriProtocolError");
+  var customMriProtocolListEl = document.getElementById("customMriProtocolList");
+  var enabledMriProtocolsChecklist = document.getElementById("enabledMriProtocolsChecklist");
+  var mriProtocolSettingsError = document.getElementById("mriProtocolSettingsError");
+  var saveEnabledMriProtocolsBtn = document.getElementById("saveEnabledMriProtocolsBtn");
+  var mriProtocolRenameList = document.getElementById("mriProtocolRenameList");
+  var saveMriProtocolNamesBtn = document.getElementById("saveMriProtocolNamesBtn");
+  var mriDeletedOrdersList = document.getElementById("mriDeletedOrdersList");
   var logoLeftPreviewWrap = document.getElementById("logoLeftPreviewWrap");
   var logoLeftFileInput = document.getElementById("logoLeftFileInput");
   var logoLeftRemoveBtn = document.getElementById("logoLeftRemoveBtn");
@@ -2478,11 +3263,14 @@
   var staffCancelBtn = document.getElementById("staffCancelBtn");
   var staffNameInput = document.getElementById("staffNameInput");
   var staffPasswordInput = document.getElementById("staffPasswordInput");
+  var staffModalityField = document.getElementById("staffModalityField");
+  var staffModalityToggle = document.getElementById("staffModalityToggle");
   var staffFormError = document.getElementById("staffFormError");
 
   var adminState = {
     editingStaffRole: null, // "RADIOLOGIST" | "TECH"
-    editingStaffName: null // null = adding new
+    editingStaffName: null, // null = adding new
+    formModality: "CT" // "CT" | "MRI" | "BOTH" — which worklist(s) this account can sign into
   };
 
   function showAdminShell() {
@@ -2523,8 +3311,15 @@
       adminTabBranding.classList.toggle("hidden", tab !== "branding");
       adminTabDeleted.classList.toggle("hidden", tab !== "deleted");
       adminTabStats.classList.toggle("hidden", tab !== "stats");
+      adminTabMri.classList.toggle("hidden", tab !== "mri");
       if (tab === "deleted") renderDeletedOrdersList();
       if (tab === "stats") renderStatsTab();
+      if (tab === "mri") {
+        populateMriSchedulingFields();
+        populateMriRetentionFields();
+        populateMriProtocolSettingsFields();
+        syncMriOrdersFromServer().then(function () { renderMriDeletedOrdersList(); });
+      }
     });
   });
 
@@ -2801,6 +3596,260 @@
   }
   statsMonthInput.addEventListener("change", renderStatsTab);
 
+  // ---- MRI admin tab: scheduling, retention, protocols, deleted orders ----
+  // Mirrors CT's Scheduling/Protocols/Deleted-orders tabs exactly, just bundled into one MRI
+  // tab and targeting MRI_SETTINGS/state.mriOrders instead. No tech-eligibility sub-checklist
+  // (unlike CT's protocols) since MRI has no ER and techs create every MRI order already.
+
+  function populateMriSchedulingFields() {
+    mriBookingWindowInput.value = MRI_SETTINGS.bookingWindowDays || 30;
+    mriDailyContrastLimitInput.value = (MRI_SETTINGS.dailyContrastLimit != null) ? MRI_SETTINGS.dailyContrastLimit : "";
+    mriPreventDoubleBookingInput.checked = MRI_SETTINGS.preventDoubleBooking !== false;
+    mriWorkStartInput.value = MRI_SETTINGS.workStart || DEFAULT_WORK_START;
+    mriWorkEndInput.value = MRI_SETTINGS.workEnd || DEFAULT_WORK_END;
+    mriWorkHoursHint.textContent = "Only these hours can be picked as an MRI appointment time. Currently " +
+      fmtTimeLabel(MRI_SETTINGS.workStart || DEFAULT_WORK_START) + "–" + fmtTimeLabel(MRI_SETTINGS.workEnd || DEFAULT_WORK_END) + ".";
+    mriSchedulingSettingsError.classList.add("hidden");
+  }
+
+  saveMriSchedulingSettingsBtn.addEventListener("click", function () {
+    var days = parseInt(mriBookingWindowInput.value, 10);
+    if (!days || days < 1 || days > 365) {
+      mriSchedulingSettingsError.textContent = "Booking window must be a number between 1 and 365 days.";
+      mriSchedulingSettingsError.classList.remove("hidden");
+      return;
+    }
+    var workStart = mriWorkStartInput.value, workEnd = mriWorkEndInput.value;
+    if (!workStart || !workEnd || workStart >= workEnd) {
+      mriSchedulingSettingsError.textContent = "Working hours start must be earlier than working hours end.";
+      mriSchedulingSettingsError.classList.remove("hidden");
+      return;
+    }
+    var limitRaw = mriDailyContrastLimitInput.value.trim();
+    var limit = limitRaw === "" ? null : parseInt(limitRaw, 10);
+    if (limit != null && (isNaN(limit) || limit < 0)) {
+      mriSchedulingSettingsError.textContent = "Contrast limit must be 0 or greater, or left blank for no limit.";
+      mriSchedulingSettingsError.classList.remove("hidden");
+      return;
+    }
+    mriSchedulingSettingsError.classList.add("hidden");
+    persistMriSettings({
+      bookingWindowDays: days, dailyContrastLimit: limit, workStart: workStart, workEnd: workEnd,
+      preventDoubleBooking: mriPreventDoubleBookingInput.checked
+    }).then(function () {
+      showToast("MRI scheduling settings saved");
+    });
+  });
+
+  function populateMriRetentionFields() {
+    mriDoneOrdersRetentionDaysInput.value = mriDoneOrdersRetentionDays();
+    mriDeletedOrdersAutoPurgeInput.checked = MRI_SETTINGS.deletedOrdersAutoPurge !== false;
+    mriDeletedOrdersRetentionDaysInput.value = mriDeletedOrdersRetentionDays();
+    mriRetentionError.classList.add("hidden");
+  }
+
+  saveMriRetentionBtn.addEventListener("click", function () {
+    var doneDays = parseInt(mriDoneOrdersRetentionDaysInput.value, 10);
+    var deletedDays = parseInt(mriDeletedOrdersRetentionDaysInput.value, 10);
+    if (!doneDays || doneDays < 1 || doneDays > 1825) {
+      mriRetentionError.textContent = "Done-order retention must be a number between 1 and 1825 days.";
+      mriRetentionError.classList.remove("hidden");
+      return;
+    }
+    if (!deletedDays || deletedDays < 1 || deletedDays > 365) {
+      mriRetentionError.textContent = "Deleted-order retention must be a number between 1 and 365 days.";
+      mriRetentionError.classList.remove("hidden");
+      return;
+    }
+    mriRetentionError.classList.add("hidden");
+    persistMriSettings({
+      doneOrdersRetentionDays: doneDays,
+      deletedOrdersAutoPurge: mriDeletedOrdersAutoPurgeInput.checked,
+      deletedOrdersRetentionDays: deletedDays
+    }).then(function () {
+      showToast("MRI retention saved");
+      renderMriDeletedOrdersList();
+    });
+  });
+
+  function renderMriProtocolChecklist() {
+    var selected = Array.isArray(MRI_SETTINGS.enabledProtocols) && MRI_SETTINGS.enabledProtocols.length
+      ? MRI_SETTINGS.enabledProtocols
+      : allMriProtocolNames();
+    enabledMriProtocolsChecklist.innerHTML = allMriProtocolNames().map(function (p) {
+      var checked = selected.indexOf(p) !== -1;
+      return '<label class="checkbox-field" style="padding:3px 0;">' +
+        '<input type="checkbox" data-mri-protocol="' + escapeHtml(p) + '"' + (checked ? " checked" : "") + ' />' +
+        '<span>' + escapeHtml(mriProtocolLabel(p)) + '</span>' +
+      '</label>';
+    }).join("");
+  }
+  function checkedMriProtocolsIn(container) {
+    return Array.prototype.filter.call(container.querySelectorAll("input[type=checkbox]"), function (cb) { return cb.checked; })
+      .map(function (cb) { return cb.getAttribute("data-mri-protocol"); });
+  }
+  function renderMriProtocolRenameList() {
+    var overrides = MRI_SETTINGS.protocolLabels || {};
+    mriProtocolRenameList.innerHTML = allMriProtocolNames().map(function (p) {
+      return '<div class="field">' +
+        '<label>' + escapeHtml(p) + '</label>' +
+        '<input type="text" class="input" autocomplete="off" data-mri-protocol-name="' + escapeHtml(p) + '" placeholder="' + escapeHtml(p) + '" value="' + escapeHtml(overrides[p] || "") + '" />' +
+      '</div>';
+    }).join("");
+  }
+  function renderCustomMriProtocolList() {
+    var custom = adminCustomMriProtocols();
+    if (!custom.length) {
+      customMriProtocolListEl.innerHTML = '<div class="staff-empty">No custom MRI protocols added yet.</div>';
+      return;
+    }
+    customMriProtocolListEl.innerHTML = custom.map(function (p) {
+      return '<div class="staff-row">' +
+        '<span style="font-size:13px;">' + escapeHtml(mriProtocolLabel(p)) + '</span>' +
+        '<button type="button" class="btn-small danger" data-action="remove-custom-mri-protocol" data-protocol="' + escapeHtml(p) + '">Remove</button>' +
+      '</div>';
+    }).join("");
+  }
+  function populateMriProtocolSettingsFields() {
+    renderMriProtocolChecklist();
+    renderMriProtocolRenameList();
+    renderCustomMriProtocolList();
+    customMriProtocolError.classList.add("hidden");
+    mriProtocolSettingsError.classList.add("hidden");
+  }
+  function refreshMriProtocolChecklistsAfterCatalogChange() {
+    renderMriProtocolChecklist();
+    renderMriProtocolRenameList();
+    renderCustomMriProtocolList();
+  }
+
+  saveEnabledMriProtocolsBtn.addEventListener("click", function () {
+    var checked = checkedMriProtocolsIn(enabledMriProtocolsChecklist);
+    if (!checked.length) {
+      mriProtocolSettingsError.textContent = "Select at least one protocol to make available.";
+      mriProtocolSettingsError.classList.remove("hidden");
+      return;
+    }
+    mriProtocolSettingsError.classList.add("hidden");
+    persistMriSettings({ enabledProtocols: checked }).then(function () {
+      showToast("Available MRI protocol list saved");
+    });
+  });
+
+  saveMriProtocolNamesBtn.addEventListener("click", function () {
+    var overrides = {};
+    Array.prototype.forEach.call(mriProtocolRenameList.querySelectorAll("input[data-mri-protocol-name]"), function (inp) {
+      var canonical = inp.getAttribute("data-mri-protocol-name");
+      var val = inp.value.trim();
+      if (val && val !== canonical) overrides[canonical] = val;
+    });
+    persistMriSettings({ protocolLabels: overrides }).then(function () {
+      showToast("MRI protocol names saved");
+      refreshMriProtocolChecklistsAfterCatalogChange();
+    });
+  });
+
+  addCustomMriProtocolBtn.addEventListener("click", function () {
+    var name = customMriProtocolNameInput.value.trim();
+    if (!name) {
+      customMriProtocolError.textContent = "Enter a name for the custom protocol.";
+      customMriProtocolError.classList.remove("hidden");
+      return;
+    }
+    var existing = allMriProtocolNames();
+    var isDuplicate = existing.some(function (p) { return p.toLowerCase() === name.toLowerCase(); });
+    if (isDuplicate) {
+      customMriProtocolError.textContent = "A protocol with that name already exists.";
+      customMriProtocolError.classList.remove("hidden");
+      return;
+    }
+    customMriProtocolError.classList.add("hidden");
+
+    var updatedCustom = adminCustomMriProtocols().concat([name]);
+    var partial = { customProtocols: updatedCustom };
+    if (Array.isArray(MRI_SETTINGS.enabledProtocols) && MRI_SETTINGS.enabledProtocols.length) {
+      partial.enabledProtocols = MRI_SETTINGS.enabledProtocols.concat([name]);
+    }
+    persistMriSettings(partial).then(function () {
+      customMriProtocolNameInput.value = "";
+      showToast("Custom MRI protocol added");
+      refreshMriProtocolChecklistsAfterCatalogChange();
+    });
+  });
+
+  customMriProtocolListEl.addEventListener("click", function (e) {
+    var btn = e.target.closest('[data-action="remove-custom-mri-protocol"]');
+    if (!btn) return;
+    var name = btn.getAttribute("data-protocol");
+    if (!window.confirm('Remove custom MRI protocol "' + mriProtocolLabel(name) + '"? It will no longer be selectable for new orders (existing orders that used it are unaffected).')) return;
+
+    var partial = { customProtocols: adminCustomMriProtocols().filter(function (p) { return p !== name; }) };
+    if (Array.isArray(MRI_SETTINGS.enabledProtocols)) {
+      partial.enabledProtocols = MRI_SETTINGS.enabledProtocols.filter(function (p) { return p !== name; });
+    }
+    if (MRI_SETTINGS.protocolLabels && MRI_SETTINGS.protocolLabels[name]) {
+      partial.protocolLabels = Object.assign({}, MRI_SETTINGS.protocolLabels);
+      delete partial.protocolLabels[name];
+    }
+    persistMriSettings(partial).then(function () {
+      showToast("Custom MRI protocol removed");
+      refreshMriProtocolChecklistsAfterCatalogChange();
+    });
+  });
+
+  function renderMriDeletedOrdersList() {
+    var deleted = state.mriOrders.filter(function (o) { return !!o.deletedAt; });
+    if (!deleted.length) {
+      mriDeletedOrdersList.innerHTML = '<div class="staff-empty">No deleted MRI orders at the moment.</div>';
+      return;
+    }
+    var now = Date.now();
+    var purgeOn = MRI_SETTINGS.deletedOrdersAutoPurge !== false;
+    mriDeletedOrdersList.innerHTML = deleted.map(function (o) {
+      var apptDate = o.appointmentDate || mriOrderDisplayDate(o) || "—";
+      var apptTime = o.appointmentTime || "—";
+      var deletedWhen = fmtTime(o.deletedAt);
+      var daysLeft = Math.max(0, mriDeletedOrdersRetentionDays() - Math.floor((now - new Date(o.deletedAt).getTime()) / 86400000));
+      var expiryText = purgeOn
+        ? (daysLeft + (daysLeft === 1 ? ' day' : ' days') + ' until permanent removal')
+        : 'kept until manually removed';
+      return '<div class="staff-row" style="flex-wrap:wrap;gap:6px 10px;">' +
+        '<div style="flex:1 1 auto;">' +
+          '<div style="font-weight:700;font-size:13px;">' + escapeHtml(o.fileNumber) + (o.patientName ? " — " + escapeHtml(o.patientName) : "") + '</div>' +
+          '<div style="font-size:12px;color:var(--sub);">' + escapeHtml(mriProtocolLabel(o.protocol)) + ' · ' + escapeHtml(apptDate) + (apptTime !== "—" ? " at " + escapeHtml(apptTime) : "") + '</div>' +
+          '<div style="font-size:11px;color:var(--faint);">Deleted ' + escapeHtml(deletedWhen) + ' by ' + escapeHtml(o.deletedBy || "—") + ' · ' + expiryText + '</div>' +
+        '</div>' +
+        '<span class="row-btns">' +
+          '<button type="button" class="btn-small primary" data-action="restore-mri-order" data-id="' + o.id + '">Restore</button>' +
+          '<button type="button" class="btn-small danger" data-action="perm-delete-mri-order" data-id="' + o.id + '">Delete permanently</button>' +
+        '</span>' +
+      '</div>';
+    }).join("");
+  }
+
+  mriDeletedOrdersList.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-action]");
+    if (!el) return;
+    var action = el.getAttribute("data-action");
+    var id = el.getAttribute("data-id");
+    var target = state.mriOrders.filter(function (o) { return o.id === id; })[0];
+    if (!target) return;
+
+    if (action === "restore-mri-order") {
+      updateMriOrder(id, { deletedAt: null, deletedBy: null }).then(function () {
+        renderMriDeletedOrdersList();
+        showToast("Order restored to worklist");
+      });
+    } else if (action === "perm-delete-mri-order") {
+      if (!window.confirm("Permanently delete order for file #" + target.fileNumber + "? This cannot be undone.")) return;
+      state.mriOrders = state.mriOrders.filter(function (o) { return o.id !== id; });
+      deleteMriOrderRow(id).then(function () {
+        renderMriDeletedOrdersList();
+        showToast("Order permanently deleted");
+      });
+    }
+  });
+
   // ---- Staff management ----
   // Generic across all four staff-manageable roles (RADIOLOGIST/TECH/XRAY/RECEPTION — ADMIN is
   // fixed in code, not managed here). listForStaffRole()/saveFnForStaffRole() are the single
@@ -2811,18 +3860,21 @@
     if (role === "TECH") return TECHS;
     if (role === "XRAY") return XRAY_TECHS;
     if (role === "RECEPTION") return RECEPTIONISTS;
+    if (role === "SUPERVISOR") return SUPERVISORS;
     return RADIOLOGISTS;
   }
   function saveFnForStaffRole(role) {
     if (role === "TECH") return saveTechs;
     if (role === "XRAY") return saveXrayTechs;
     if (role === "RECEPTION") return saveReceptionists;
+    if (role === "SUPERVISOR") return saveSupervisors;
     return saveRadiologists;
   }
   function staffRoleLabel(role) {
     if (role === "TECH") return "technologist";
     if (role === "XRAY") return "X-ray technologist";
     if (role === "RECEPTION") return "receptionist";
+    if (role === "SUPERVISOR") return "supervisor";
     return "radiologist";
   }
 
@@ -2831,6 +3883,7 @@
     renderStaffListInto(techListEl, TECHS, "TECH");
     renderStaffListInto(xrayTechListEl, XRAY_TECHS, "XRAY");
     renderStaffListInto(receptionistListEl, RECEPTIONISTS, "RECEPTION");
+    renderStaffListInto(supervisorListEl, SUPERVISORS, "SUPERVISOR");
   }
 
   function renderStaffListInto(container, list, role) {
@@ -2838,9 +3891,13 @@
       container.innerHTML = '<div class="staff-empty">No accounts yet.</div>';
       return;
     }
+    var showModality = role === "RADIOLOGIST" || role === "TECH";
     container.innerHTML = list.map(function (person) {
+      var modalityBadge = showModality
+        ? '<span class="role-tag" style="margin-left:6px;">' + (person.modalityAccess === "MRI" ? "MRI" : person.modalityAccess === "BOTH" ? "CT + MRI" : "CT") + '</span>'
+        : "";
       return '<div class="staff-row">' +
-        '<span class="name">' + escapeHtml(person.name) + '</span>' +
+        '<span class="name">' + escapeHtml(person.name) + modalityBadge + '</span>' +
         '<span class="row-btns">' +
           '<button type="button" class="btn-small" data-action="edit-staff" data-role="' + role + '" data-name="' + escapeHtml(person.name) + '">Edit</button>' +
           '<button type="button" class="btn-small danger" data-action="delete-staff" data-role="' + role + '" data-name="' + escapeHtml(person.name) + '">Remove</button>' +
@@ -2849,21 +3906,34 @@
     }).join("");
   }
 
+  // Modality access (CT/MRI/Both) only applies to Radiologists and Techs — the roles that
+  // actually sign into a worklist. X-ray/Reception/Supervisor/Admin have their own separate
+  // pages already and aren't affected by this at all.
+  function setStaffModality(value) {
+    adminState.formModality = value;
+    Array.prototype.forEach.call(staffModalityToggle.children, function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-modality") === value);
+    });
+  }
+
   function openStaffForm(role, existingName) {
     adminState.editingStaffRole = role;
     adminState.editingStaffName = existingName || null;
     staffFormError.classList.add("hidden");
     var roleLabel = staffRoleLabel(role);
     staffModalTitle.textContent = existingName ? ("Edit " + roleLabel) : ("Add " + roleLabel);
+    staffModalityField.classList.toggle("hidden", role !== "RADIOLOGIST" && role !== "TECH");
 
     if (existingName) {
       var list = listForStaffRole(role);
       var person = list.filter(function (p) { return p.name === existingName; })[0];
       staffNameInput.value = person ? person.name : "";
       staffPasswordInput.value = person ? person.password : "";
+      setStaffModality((person && person.modalityAccess) || "CT");
     } else {
       staffNameInput.value = "";
       staffPasswordInput.value = "";
+      setStaffModality("CT");
     }
     staffModalOverlay.classList.remove("hidden");
   }
@@ -2889,10 +3959,17 @@
     var duplicate = list.some(function (p) { return p.name === name && p.name !== editingName; });
     if (duplicate) { showStaffFormError("An account with this name already exists."); return; }
 
+    // Only Radiologists/Techs carry modality access; other roles don't have the field shown,
+    // so their record just never gets it (accountListForRole/login for those roles doesn't
+    // look at it anyway).
+    var modalityAccess = (role === "RADIOLOGIST" || role === "TECH") ? adminState.formModality : undefined;
+    var newPerson = { name: name, password: password };
+    if (modalityAccess) newPerson.modalityAccess = modalityAccess;
+
     if (editingName) {
-      list = list.map(function (p) { return p.name === editingName ? { name: name, password: password } : p; });
+      list = list.map(function (p) { return p.name === editingName ? newPerson : p; });
     } else {
-      list.push({ name: name, password: password });
+      list.push(newPerson);
     }
 
     saveFnForStaffRole(role)(list).then(function () {
@@ -2900,6 +3977,10 @@
       showToast(editingName ? "Account updated" : "Account added");
       closeStaffForm();
     });
+  });
+
+  Array.prototype.forEach.call(staffModalityToggle.children, function (btn) {
+    btn.addEventListener("click", function () { setStaffModality(btn.getAttribute("data-modality")); });
   });
 
   function showStaffFormError(msg) {
@@ -2996,6 +4077,24 @@
     };
     for (var k in partial) merged[k] = partial[k];
     return saveSchedulingSettings(merged);
+  }
+
+  function persistMriSettings(partial) {
+    var merged = {
+      bookingWindowDays: MRI_SETTINGS.bookingWindowDays,
+      dailyContrastLimit: MRI_SETTINGS.dailyContrastLimit,
+      workStart: MRI_SETTINGS.workStart,
+      workEnd: MRI_SETTINGS.workEnd,
+      preventDoubleBooking: MRI_SETTINGS.preventDoubleBooking,
+      enabledProtocols: MRI_SETTINGS.enabledProtocols,
+      protocolLabels: MRI_SETTINGS.protocolLabels,
+      customProtocols: MRI_SETTINGS.customProtocols,
+      deletedOrdersAutoPurge: MRI_SETTINGS.deletedOrdersAutoPurge,
+      deletedOrdersRetentionDays: MRI_SETTINGS.deletedOrdersRetentionDays,
+      doneOrdersRetentionDays: MRI_SETTINGS.doneOrdersRetentionDays
+    };
+    for (var k in partial) merged[k] = partial[k];
+    return saveMriSettings(merged);
   }
 
   function populateSchedulingSettingsFields() {
@@ -3896,7 +4995,7 @@
           '<div class="col en"><h2>Instructions</h2><ul>' + enItems + '</ul></div>' +
           '<div class="col ar"><h2>التعليمات</h2><ul>' + arItems + '</ul></div>' +
         '</div>' +
-        '<div class="footer">Printed ' + escapeHtml(fmtTime(nowISO())) + ' · CT Worklist</div>' +
+        '<div class="footer">Printed ' + escapeHtml(fmtTime(nowISO())) + ' · AZ-Rad Management</div>' +
       '</div>' +
       '<script>window.onload = function(){ window.print(); };</' + 'script>' +
       '</body></html>';
@@ -4473,19 +5572,36 @@
     addQueuePatientBtn.classList.toggle("hidden", state.session.role !== "RECEPTION");
   }
 
+  // How long a Waiting card stays blue before it flags itself red as a "still hasn't been
+  // taken back" reminder — separate from (and much shorter than) the no-show flag below, which
+  // is a deliberate tech action rather than a timer.
+  var QUEUE_WAIT_ALERT_MINUTES = 3;
+
+  function queueCardColor(entry) {
+    if (entry.status === "DONE") return "done";
+    if (entry.noShow) return "orange";
+    return minutesAgo(entry.createdAt) >= QUEUE_WAIT_ALERT_MINUTES ? "red" : "blue";
+  }
+
   function queueCardHtml(entry) {
     var role = state.session.role;
     var actionsHtml = "";
-    if (role === "XRAY" && entry.status === "WAITING") {
-      actionsHtml += '<button type="button" class="btn-stage green" data-action="finish-queue" data-id="' + entry.id + '">✓ Finished</button>';
+    if (role === "XRAY" && entry.status === "WAITING" && !entry.noShow) {
+      actionsHtml += '<button type="button" class="btn-stage green" data-action="finish-queue" data-id="' + entry.id + '">✓ Finished</button>' +
+        '<button type="button" class="btn-stage" style="background:#FFF3DC;color:#9A5B00;border-color:#F2C94C;" data-action="no-show-queue" data-id="' + entry.id + '">Patient no-show</button>';
     }
     if (role === "RECEPTION" && entry.status === "WAITING") {
       actionsHtml += '<button type="button" class="btn-small danger" data-action="remove-queue" data-id="' + entry.id + '">Remove</button>';
     }
-    var metaHtml = entry.status === "DONE"
-      ? "Finished " + fmtTime(entry.doneAt) + (entry.xrayTech ? " · " + escapeHtml(entry.xrayTech) : "")
-      : "Added " + fmtTime(entry.createdAt) + " · " + minutesAgo(entry.createdAt) + "m ago" + (entry.receptionBy ? " · " + escapeHtml(entry.receptionBy) : "");
-    return '<div class="queue-card ' + (entry.status === "DONE" ? "done" : "waiting") + '">' +
+    var metaHtml;
+    if (entry.status === "DONE") {
+      metaHtml = "Finished " + fmtTime(entry.doneAt) + (entry.xrayTech ? " · " + escapeHtml(entry.xrayTech) : "");
+    } else if (entry.noShow) {
+      metaHtml = "No-show" + (entry.noShowAt ? " — marked " + fmtTime(entry.noShowAt) : "") + (entry.noShowBy ? " · " + escapeHtml(entry.noShowBy) : "");
+    } else {
+      metaHtml = "Added " + fmtTime(entry.createdAt) + " · " + minutesAgo(entry.createdAt) + "m ago" + (entry.receptionBy ? " · " + escapeHtml(entry.receptionBy) : "");
+    }
+    return '<div class="queue-card ' + queueCardColor(entry) + '">' +
       '<div>' +
         '<div class="queue-card-file">File #' + escapeHtml(entry.fileNumber) + '</div>' +
         (entry.patientName ? '<div class="queue-card-name">' + escapeHtml(entry.patientName) + '</div>' : '') +
@@ -4525,6 +5641,17 @@
     queueFinishedList.innerHTML = finished.map(queueCardHtml).join("");
   }
 
+  // Queue data renders into two different places (the dedicated queueApp for XRAY/RECEPTION,
+  // and the Supervisor dashboard's table further below) — refresh whichever one is actually
+  // showing after any queue mutation.
+  function refreshQueueViews() {
+    if (state.session && state.session.role === "SUPERVISOR") {
+      renderSupervisorDashboard();
+    } else {
+      renderQueue();
+    }
+  }
+
   function handleQueueClick(e) {
     var el = e.target.closest("[data-action]");
     if (!el) return;
@@ -4537,13 +5664,24 @@
       entry.status = "DONE";
       entry.doneAt = nowISO();
       entry.xrayTech = state.session.name;
-      renderQueue(); // optimistic
+      refreshQueueViews(); // optimistic
       upsertQueueRow(entry);
       showToast("Marked finished");
+    } else if (action === "no-show-queue") {
+      // Deliberately no status change (stays "WAITING") — noShow is a permanent visual flag,
+      // not a completion state, so the card doesn't move out of the Waiting list.
+      var noShowEntry = state.queue.filter(function (q) { return q.id === id; })[0];
+      if (!noShowEntry) return;
+      noShowEntry.noShow = true;
+      noShowEntry.noShowAt = nowISO();
+      noShowEntry.noShowBy = state.session.name;
+      refreshQueueViews(); // optimistic
+      upsertQueueRow(noShowEntry);
+      showToast("Marked as no-show");
     } else if (action === "remove-queue") {
       if (!window.confirm("Remove this patient from the queue?")) return;
       state.queue = state.queue.filter(function (q) { return q.id !== id; });
-      renderQueue(); // optimistic
+      refreshQueueViews(); // optimistic
       deleteQueueRow(id);
       showToast("Removed from queue");
     }
@@ -4616,6 +5754,961 @@
     upsertQueueRow(entry);
     showToast("Added to queue");
     closeQueueForm();
+  });
+
+  // ---------- Supervisor dashboard (SUPERVISOR role) ----------
+  //
+  // Deliberately NOT the full CT worklist board or the full X-ray queue cards — just enough to
+  // monitor both at a glance: live counts for CT, and a compact timestamped table for X-ray
+  // (added/waiting/finished), with the one write action a Supervisor has: resolving a no-show.
+
+  function showSupervisorShell() {
+    loginScreen.classList.add("hidden");
+    supervisorApp.classList.remove("hidden");
+    supervisorUserName.textContent = state.session.name;
+  }
+
+  function statTileHtml(value, label, variant) {
+    return '<div class="stat-tile' + (variant ? " " + variant : "") + '">' +
+      '<div class="stat-value">' + value + '</div>' +
+      '<div class="stat-label">' + escapeHtml(label) + '</div>' +
+    '</div>';
+  }
+
+  function supervisorCtDelayedRowHtml(order) {
+    var level = orderDelayLevel(order); // "orange" | "red" — never null here, only delayed orders reach this
+    var mins = minutesAgo(lastActionAt(order));
+    var icon = level === "red" ? "🔴" : "🟠";
+    return '<tr>' +
+      '<td style="font-family:var(--mono);font-weight:600;">' + escapeHtml(order.fileNumber) + '</td>' +
+      '<td>' + PRIORITY[order.priority].label + '</td>' +
+      '<td>' + escapeHtml(protocolLabel(order.protocol)) + '</td>' +
+      '<td>' + statusLabelFor(order.status, order.priority) + '</td>' +
+      '<td>' + icon + ' ' + fmtDuration(mins) + '</td>' +
+    '</tr>';
+  }
+
+  // "Today" only — an ER/Inpatient order from a previous day that's still open shouldn't keep
+  // inflating this dashboard forever; see orderDisplayDate() (createdAt-based for ER/Inpatient).
+  function renderSupervisorCtSection() {
+    var today = todayISODate();
+    var todaysActive = state.orders.filter(function (o) {
+      return !o.deletedAt && o.status !== "DONE" && o.status !== "NO_SHOW" && orderDisplayDate(o) === today;
+    });
+    var er = todaysActive.filter(function (o) { return o.priority === "ER"; }).length;
+    var inpatient = todaysActive.filter(function (o) { return o.priority === "INPATIENT"; }).length;
+    var outpatient = todaysActive.filter(function (o) { return o.priority === "OUTPATIENT"; }).length;
+    var delayedOrders = todaysActive.filter(function (o) { return !!orderDelayLevel(o); });
+
+    supervisorCtStats.innerHTML =
+      statTileHtml(todaysActive.length, "Active today") +
+      statTileHtml(er, "ER") +
+      statTileHtml(inpatient, "Inpatient") +
+      statTileHtml(outpatient, "Outpatient") +
+      statTileHtml(delayedOrders.length, "Delayed", delayedOrders.length > 0 ? "danger" : "");
+
+    // Most-delayed first, so the order needing attention most urgently is at the top.
+    var sortedDelayed = delayedOrders.slice().sort(function (a, b) {
+      return minutesAgo(lastActionAt(b)) - minutesAgo(lastActionAt(a));
+    });
+    supervisorCtDelayedEmpty.classList.toggle("hidden", sortedDelayed.length !== 0);
+    supervisorCtDelayedTable.classList.toggle("hidden", sortedDelayed.length === 0);
+    supervisorCtDelayedTableBody.innerHTML = sortedDelayed.map(supervisorCtDelayedRowHtml).join("");
+  }
+
+  // Mirrors renderSupervisorCtSection() but trimmed — MRI has no ER category and no
+  // delay-coloring built yet (see [[ct-worklist-mri-worklist]]), so there's no "Delayed" tile
+  // or table here, just the same active/priority breakdown.
+  function renderSupervisorMriSection() {
+    var today = todayISODate();
+    var todaysActive = state.mriOrders.filter(function (o) {
+      return !o.deletedAt && o.status !== "DONE" && mriOrderDisplayDate(o) === today;
+    });
+    var inpatient = todaysActive.filter(function (o) { return o.priority === "INPATIENT"; }).length;
+    var outpatient = todaysActive.filter(function (o) { return o.priority === "OUTPATIENT"; }).length;
+
+    supervisorMriStats.innerHTML =
+      statTileHtml(todaysActive.length, "Active today") +
+      statTileHtml(inpatient, "Inpatient") +
+      statTileHtml(outpatient, "Outpatient");
+  }
+
+  // Elapsed time from added to now (still waiting/no-show) or added to finished (frozen once done).
+  function queueWaitMinutes(entry) {
+    var endMs = (entry.status === "DONE" && entry.doneAt) ? new Date(entry.doneAt).getTime() : Date.now();
+    // Clamped to 0 — bad/edited timestamps (finished stamped earlier than added) shouldn't
+    // ever surface as a nonsensical negative duration.
+    return Math.max(0, (endMs - new Date(entry.createdAt).getTime()) / 60000);
+  }
+
+  function queueStatusLabel(entry) {
+    if (entry.status === "DONE") return "✅ Finished";
+    if (entry.noShow) return "🟠 No-show";
+    return minutesAgo(entry.createdAt) >= QUEUE_WAIT_ALERT_MINUTES ? "🔴 Waiting" : "🔵 Waiting";
+  }
+
+  function supervisorXrayActiveRowHtml(entry) {
+    var canFinish = !!entry.noShow;
+    return '<tr>' +
+      '<td style="font-family:var(--mono);font-weight:600;">' + escapeHtml(entry.fileNumber) + '</td>' +
+      '<td>' + (entry.patientName ? escapeHtml(entry.patientName) : "—") + '</td>' +
+      '<td>' + fmtTime(entry.createdAt) + '</td>' +
+      '<td>' + fmtDuration(queueWaitMinutes(entry)) + '</td>' +
+      '<td>' + queueStatusLabel(entry) +
+        (canFinish ? ' <button type="button" class="btn-small" data-action="finish-queue" data-id="' + entry.id + '">Finish</button>' : '') +
+      '</td>' +
+    '</tr>';
+  }
+
+  function supervisorXrayFinishedRowHtml(entry) {
+    return '<tr>' +
+      '<td style="font-family:var(--mono);font-weight:600;">' + escapeHtml(entry.fileNumber) + '</td>' +
+      '<td>' + (entry.patientName ? escapeHtml(entry.patientName) : "—") + '</td>' +
+      '<td>' + fmtTime(entry.createdAt) + '</td>' +
+      '<td>' + fmtDuration(queueWaitMinutes(entry)) + '</td>' +
+      '<td>' + fmtTime(entry.doneAt) + '</td>' +
+    '</tr>';
+  }
+
+  function renderSupervisorXraySection() {
+    var today = todayISODate();
+    var todaysEntries = state.queue.filter(function (e) { return queueDisplayDate(e) === today; });
+    // Still-open entries (waiting or no-show) always on top, oldest/longest-waiting first —
+    // that's what actually needs attention right now. Finished patients are old news, tucked
+    // into a collapsed section below so they don't bury who's currently waiting.
+    var active = todaysEntries.filter(function (e) { return e.status === "WAITING"; })
+      .sort(function (a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
+    var noShowCount = active.filter(function (e) { return e.noShow; }).length;
+    var finished = todaysEntries.filter(function (e) { return e.status === "DONE"; })
+      .sort(function (a, b) { return new Date(b.doneAt) - new Date(a.doneAt); });
+
+    supervisorXrayStats.innerHTML =
+      statTileHtml(active.length - noShowCount, "Waiting") +
+      statTileHtml(noShowCount, "No-show", noShowCount > 0 ? "warn" : "") +
+      statTileHtml(finished.length, "Finished today");
+
+    supervisorXrayEmpty.classList.toggle("hidden", todaysEntries.length !== 0);
+
+    supervisorXrayActiveTable.classList.toggle("hidden", active.length === 0);
+    supervisorXrayActiveTableBody.innerHTML = active.map(supervisorXrayActiveRowHtml).join("");
+
+    supervisorXrayFinishedSection.classList.toggle("hidden", finished.length === 0);
+    supervisorXrayFinishedTitle.textContent = "✓ Finished (" + finished.length + ")";
+    supervisorXrayFinishedTableBody.innerHTML = finished.map(supervisorXrayFinishedRowHtml).join("");
+  }
+
+  function renderSupervisorDashboard() {
+    renderSupervisorCtSection();
+    renderSupervisorMriSection();
+    renderSupervisorXraySection();
+  }
+
+  function refreshSupervisorDashboard() {
+    return Promise.all([syncOrdersFromServer(), syncQueueFromServer(), syncMriOrdersFromServer()]).then(function () {
+      renderSupervisorDashboard();
+    });
+  }
+
+  supervisorXrayActiveTableBody.addEventListener("click", handleQueueClick);
+  supervisorXrayFinishedToggleBtn.addEventListener("click", function () {
+    supervisorXrayFinishedBody.classList.toggle("hidden");
+    supervisorXrayFinishedChevron.textContent = supervisorXrayFinishedBody.classList.contains("hidden") ? "▼" : "▲";
+  });
+  supervisorLogoutBtn.addEventListener("click", logout);
+
+  // ---------- MRI worklist (Radiologist/Tech with MRI access) ----------
+  //
+  // Closely mirrors the CT worklist above (same status flow, same day-nav/search/filter/
+  // time-slot-grid patterns) but simplified per explicit request: Inpatient/Outpatient only
+  // (no ER), no printing, no protocoling workflow, no hold-reasons/delay-coloring/no-show —
+  // those are CT-only features built incrementally; add them here later the same way if
+  // wanted. Techs create every MRI order (both priorities); Radiologists can view/edit only.
+
+  function showMriShell() {
+    loginScreen.classList.add("hidden");
+    mriApp.classList.remove("hidden");
+    mriUserName.textContent = state.session.name;
+    mriUserRoleTag.textContent = state.session.role === "TECH" ? "Tech" : "Radiologist";
+    mriNewOrderBtn.classList.toggle("hidden", state.session.role !== "TECH" && state.session.role !== "RADIOLOGIST");
+    mriSwitchToCtBtn.classList.toggle("hidden", state.session.modalityAccess !== "BOTH");
+  }
+
+  function mriMaxAppointmentISODate() {
+    var d = new Date();
+    d.setDate(d.getDate() + (MRI_SETTINGS.bookingWindowDays || 30));
+    var y = d.getFullYear(), m = d.getMonth() + 1, dd = d.getDate();
+    return y + "-" + (m < 10 ? "0" + m : m) + "-" + (dd < 10 ? "0" + dd : dd);
+  }
+
+  function mriOutpatientTimeSlots() {
+    var start = MRI_SETTINGS.workStart || DEFAULT_WORK_START, end = MRI_SETTINGS.workEnd || DEFAULT_WORK_END;
+    var startMin = parseInt(start.split(":")[0], 10) * 60 + parseInt(start.split(":")[1], 10);
+    var endMin = parseInt(end.split(":")[0], 10) * 60 + parseInt(end.split(":")[1], 10);
+    var slots = [];
+    for (var t = startMin; t <= endMin; t += 10) {
+      var h = Math.floor(t / 60), m = t % 60;
+      slots.push((h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m));
+    }
+    return slots;
+  }
+
+  function mriBookedAppointmentSlots(date, excludeId) {
+    return state.mriOrders.filter(function (o) {
+      return o.priority === "OUTPATIENT" && o.appointmentDate === date && o.appointmentTime &&
+        o.id !== excludeId && !o.deletedAt;
+    }).map(function (o) { return o.appointmentTime; });
+  }
+
+  function populateMriAppointmentTimeOptions(preserveValue) {
+    var slots = mriOutpatientTimeSlots();
+    if (preserveValue && slots.indexOf(preserveValue) === -1) {
+      slots = slots.concat([preserveValue]).sort();
+    }
+    if (MRI_SETTINGS.preventDoubleBooking && mriAppointmentDateInput.value) {
+      var taken = mriBookedAppointmentSlots(mriAppointmentDateInput.value, state.mriEditingId);
+      slots = slots.filter(function (s) { return s === preserveValue || taken.indexOf(s) === -1; });
+    }
+    mriAppointmentTimeInput.innerHTML = slots.map(function (s) {
+      return '<option value="' + s + '">' + fmtTimeLabel(s) + '</option>';
+    }).join("");
+    mriAppointmentTimeInput.value = (preserveValue && slots.indexOf(preserveValue) !== -1) ? preserveValue : slots[0];
+  }
+
+  function populateMriProtocols() {
+    var list = activeEnabledMriProtocols();
+    var previousValue = mriProtocolSelect.value;
+    mriProtocolSelect.innerHTML = "";
+    list.forEach(function (p) {
+      var opt = document.createElement("option");
+      opt.value = p; opt.textContent = mriProtocolLabel(p);
+      mriProtocolSelect.appendChild(opt);
+    });
+    mriProtocolSelect.value = list.indexOf(previousValue) !== -1 ? previousValue : list[0];
+    mriCustomProtocolField.classList.toggle("hidden", mriProtocolSelect.value !== MRI_CUSTOM_PROTOCOL_LABEL);
+  }
+
+  function populateMriDepartments() {
+    var previousValue = mriReferringDeptSelect.value;
+    var list = activeEnabledDepartments(); // shared with CT — see [[ct-worklist-referring-department]]
+    mriReferringDeptSelect.innerHTML = "";
+    list.forEach(function (d) {
+      var opt = document.createElement("option");
+      opt.value = d; opt.textContent = departmentLabel(d);
+      mriReferringDeptSelect.appendChild(opt);
+    });
+    mriReferringDeptSelect.value = list.indexOf(previousValue) !== -1 ? previousValue : list[0];
+  }
+
+  function setMriFormPriority(p) {
+    state.mriFormPriority = p;
+    Array.prototype.forEach.call(mriPriorityToggle.children, function (btn) {
+      var active = btn.getAttribute("data-priority") === p;
+      var conf = PRIORITY[btn.getAttribute("data-priority")];
+      btn.style.background = active ? conf.bg : "#fff";
+      btn.style.color = active ? conf.color : "#6B7080";
+      btn.style.borderColor = active ? conf.color : "#D9DBE1";
+    });
+    mriAppointmentField.classList.toggle("hidden", p !== "OUTPATIENT");
+    mriAppointmentTimeField.classList.toggle("hidden", p !== "OUTPATIENT");
+    mriContrastField.classList.toggle("hidden", p !== "OUTPATIENT");
+    mriReferralConfirmedField.classList.toggle("hidden", p !== "OUTPATIENT");
+    mriNeedsProtocolingField.classList.toggle("hidden", p !== "OUTPATIENT");
+    populateMriProtocols();
+    updateMriDateLoadSummary();
+  }
+
+  function setMriFormContrast(isContrast) {
+    state.mriFormContrast = isContrast;
+    Array.prototype.forEach.call(mriContrastToggle.children, function (btn) {
+      var active = (btn.getAttribute("data-contrast") === "YES") === isContrast;
+      btn.style.background = active ? (isContrast ? "#FCE8E6" : "#EEF0F3") : "#fff";
+      btn.style.color = active ? (isContrast ? "#B3261E" : "#5A5F6B") : "#6B7080";
+      btn.style.borderColor = active ? (isContrast ? "#B3261E" : "#D9DBE1") : "#D9DBE1";
+    });
+    updateMriDateLoadSummary();
+  }
+
+  function openMriForm(order) {
+    mriFormError.classList.add("hidden");
+    state.mriEditingId = order ? order.id : null;
+    mriModalTitle.textContent = order ? "Edit order" : "New MRI order";
+    mriSubmitBtn.textContent = order ? "Save changes" : "Add to worklist";
+
+    // Editing locks the category (don't let anyone change it after the fact); creating new
+    // always offers both — techs create both Inpatient and Outpatient MRI orders freely.
+    Array.prototype.forEach.call(mriPriorityToggle.children, function (btn) {
+      var p = btn.getAttribute("data-priority");
+      btn.classList.toggle("hidden", !!order && p !== order.priority);
+    });
+
+    mriFileNumberInput.value = order ? order.fileNumber : "";
+    mriPatientNameInput.value = order ? (order.patientName || "") : "";
+    mriReferralConfirmedInput.checked = order ? !!order.referralConfirmed : false;
+    mriNeedsProtocolingInput.checked = order ? !!order.needsProtocoling : false;
+    var defaultPriority = order ? order.priority : "OUTPATIENT";
+    setMriFormPriority(defaultPriority);
+
+    var protocol = order ? order.protocol : mriProtocolSelect.value;
+    var allowedList = activeEnabledMriProtocols();
+    var isKnown = allowedList.indexOf(protocol) !== -1;
+    mriProtocolSelect.value = isKnown ? protocol : MRI_CUSTOM_PROTOCOL_LABEL;
+    mriCustomProtocolField.classList.toggle("hidden", mriProtocolSelect.value !== MRI_CUSTOM_PROTOCOL_LABEL);
+    mriCustomProtocolInput.value = isKnown ? "" : (protocol || "");
+
+    populateMriDepartments();
+    var deptList = activeEnabledDepartments();
+    var referringDept = order ? order.referringDept : deptList[0];
+    if (referringDept && deptList.indexOf(referringDept) === -1) {
+      var deptOpt = document.createElement("option");
+      deptOpt.value = referringDept; deptOpt.textContent = departmentLabel(referringDept);
+      mriReferringDeptSelect.appendChild(deptOpt);
+    }
+    mriReferringDeptSelect.value = referringDept || deptList[0];
+    mriNotesField.value = order && order.notes ? order.notes : "";
+
+    var isCustomProtocol = mriProtocolSelect.value === MRI_CUSTOM_PROTOCOL_LABEL;
+    setMriFormContrast(order ? !!order.contrastEnhanced : (isCustomProtocol ? guessContrastFromCustomText(mriCustomProtocolInput.value) : mriDefaultContrastFor(mriProtocolSelect.value)));
+
+    var bookingWindowDays = MRI_SETTINGS.bookingWindowDays || 30;
+    mriAppointmentWindowHint.textContent = "Outpatient studies can be booked up to " + bookingWindowDays + (bookingWindowDays === 1 ? " day" : " days") + " ahead.";
+    mriAppointmentDateInput.min = todayISODate();
+    mriAppointmentDateInput.max = mriMaxAppointmentISODate();
+    mriAppointmentDateInput.value = order && order.appointmentDate ? order.appointmentDate : todayISODate();
+
+    var workStart = MRI_SETTINGS.workStart || DEFAULT_WORK_START, workEnd = MRI_SETTINGS.workEnd || DEFAULT_WORK_END;
+    mriAppointmentTimeHint.textContent = "Time slots are in 10-minute increments, between " + fmtTimeLabel(workStart) + " and " + fmtTimeLabel(workEnd) + ".";
+    if (order && order.appointmentTime) {
+      populateMriAppointmentTimeOptions(order.appointmentTime);
+    } else {
+      var now = new Date();
+      var h = now.getHours(), m = now.getMinutes();
+      var snapped = snapToTenMinutes((h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m));
+      if (snapped < workStart || snapped > workEnd) snapped = workStart;
+      populateMriAppointmentTimeOptions(snapped);
+    }
+    updateMriDateLoadSummary();
+
+    mriModalOverlay.classList.remove("hidden");
+  }
+  function closeMriForm() {
+    mriModalOverlay.classList.add("hidden");
+    state.mriEditingId = null;
+  }
+
+  function handleMriProtocolChange() {
+    var isCustom = mriProtocolSelect.value === MRI_CUSTOM_PROTOCOL_LABEL;
+    mriCustomProtocolField.classList.toggle("hidden", !isCustom);
+    if (state.mriFormPriority === "OUTPATIENT") {
+      setMriFormContrast(isCustom ? guessContrastFromCustomText(mriCustomProtocolInput.value) : mriDefaultContrastFor(mriProtocolSelect.value));
+    }
+  }
+  function handleMriCustomProtocolTextInput() {
+    if (state.mriFormPriority === "OUTPATIENT" && mriProtocolSelect.value === MRI_CUSTOM_PROTOCOL_LABEL) {
+      setMriFormContrast(guessContrastFromCustomText(mriCustomProtocolInput.value));
+    }
+  }
+
+  function showMriFormError(msg) {
+    mriFormError.textContent = msg;
+    mriFormError.classList.remove("hidden");
+  }
+
+  function submitMriForm(e) {
+    e.preventDefault();
+    var fileNumber = mriFileNumberInput.value.trim();
+    var isCustom = mriProtocolSelect.value === MRI_CUSTOM_PROTOCOL_LABEL;
+    var finalProtocol = isCustom ? mriCustomProtocolInput.value.trim() : mriProtocolSelect.value;
+
+    if (!fileNumber) { showMriFormError("Patient file number is required."); return; }
+    var patientName = mriPatientNameInput.value.trim();
+    if (state.mriFormPriority === "OUTPATIENT" && !mriReferralConfirmedInput.checked) {
+      showMriFormError("Please confirm the referring doctor's request exists before continuing.");
+      return;
+    }
+    if (isCustom && !finalProtocol) { showMriFormError("Enter the custom protocol name."); return; }
+
+    var appointmentDate = null;
+    var appointmentTime = null;
+    var contrastEnhanced = false;
+    if (state.mriFormPriority === "OUTPATIENT") {
+      appointmentDate = mriAppointmentDateInput.value;
+      var today = todayISODate(), max = mriMaxAppointmentISODate();
+      var bookingWindowDays = MRI_SETTINGS.bookingWindowDays || 30;
+      if (appointmentDate < today) { showMriFormError("Appointment date can't be in the past."); return; }
+      if (appointmentDate > max) { showMriFormError("Outpatient appointments can only be booked up to " + bookingWindowDays + (bookingWindowDays === 1 ? " day" : " days") + " ahead."); return; }
+      appointmentTime = mriAppointmentTimeInput.value;
+      if (!appointmentTime) { showMriFormError("Appointment time is required for outpatient studies."); return; }
+
+      if (MRI_SETTINGS.preventDoubleBooking) {
+        var takenSlots = mriBookedAppointmentSlots(appointmentDate, state.mriEditingId);
+        if (takenSlots.indexOf(appointmentTime) !== -1) {
+          showMriFormError("That time slot (" + fmtTimeLabel(appointmentTime) + ") is already booked on " + appointmentDate + ". Choose another time.");
+          return;
+        }
+      }
+
+      contrastEnhanced = !!state.mriFormContrast;
+      if (contrastEnhanced) {
+        var contrastLimit = MRI_SETTINGS.dailyContrastLimit;
+        if (contrastLimit != null) {
+          var sameDayContrastCount = state.mriOrders.filter(function (o) {
+            return o.priority === "OUTPATIENT" && o.appointmentDate === appointmentDate &&
+              o.contrastEnhanced && o.id !== state.mriEditingId && !o.deletedAt;
+          }).length;
+          if (sameDayContrastCount >= contrastLimit) {
+            showMriFormError("The contrast-enhanced appointment limit for this date (" + contrastLimit + ") has already been reached. Choose another date, a non-contrast study, or ask the admin to raise the limit.");
+            return;
+          }
+        }
+      }
+    }
+
+    mriFormError.classList.add("hidden");
+
+    var data = {
+      fileNumber: fileNumber,
+      patientName: patientName,
+      referralConfirmed: state.mriFormPriority === "OUTPATIENT" ? true : null,
+      priority: state.mriFormPriority,
+      protocol: finalProtocol,
+      referringDept: mriReferringDeptSelect.value,
+      notes: mriNotesField.value.trim(),
+      appointmentDate: appointmentDate,
+      appointmentTime: appointmentTime,
+      contrastEnhanced: contrastEnhanced,
+      needsProtocoling: state.mriFormPriority === "OUTPATIENT" ? mriNeedsProtocolingInput.checked : false
+    };
+
+    if (state.mriEditingId) {
+      updateMriOrder(state.mriEditingId, data);
+      showToast("Order updated");
+    } else {
+      addMriOrder(data);
+    }
+    var targetDate = data.priority === "OUTPATIENT" && data.appointmentDate ? data.appointmentDate : todayISODate();
+    state.mriViewDate = targetDate;
+    closeMriForm();
+  }
+
+  function addMriOrder(data) {
+    var t = nowISO();
+    var isTech = state.session.role === "TECH";
+    var order = Object.assign({}, data, {
+      id: uid(),
+      createdAt: t,
+      status: "SCHEDULED",
+      tech: isTech ? state.session.name : null,
+      radiologist: isTech ? null : state.session.name,
+      scheduledAt: t,
+      askedToSendAt: null,
+      doneAt: null
+    });
+    state.mriOrders = [order].concat(state.mriOrders); // optimistic
+    renderMri();
+    var p = upsertMriOrderRow(order);
+    showToast("Order added to worklist");
+    return p;
+  }
+
+  function updateMriOrder(id, patch) {
+    var updatedOrder = null;
+    state.mriOrders = state.mriOrders.map(function (o) {
+      if (o.id !== id) return o;
+      updatedOrder = Object.assign({}, o, patch);
+      return updatedOrder;
+    });
+    renderMri(); // optimistic
+    if (!updatedOrder) return Promise.resolve();
+    return upsertMriOrderRow(updatedOrder);
+  }
+
+  function deleteMriOrder(id) {
+    var existing = state.mriOrders.filter(function (o) { return o.id === id; })[0];
+    // No printing for MRI, so (unlike CT, which only soft-deletes once instructions were
+    // printed) every outpatient delete soft-deletes — same one-week admin recovery window.
+    var shouldSoftDelete = existing && existing.priority === "OUTPATIENT";
+    if (shouldSoftDelete) {
+      return updateMriOrder(id, { deletedAt: nowISO(), deletedBy: state.session.name }).then(function () {
+        showToast("Order moved to deleted — admin can restore it within a week");
+      });
+    }
+    state.mriOrders = state.mriOrders.filter(function (o) { return o.id !== id; });
+    renderMri(); // optimistic
+    var p = deleteMriOrderRow(id);
+    showToast("Order removed");
+    return p;
+  }
+
+  function askToSendMri(id) {
+    var existing = state.mriOrders.filter(function (o) { return o.id === id; })[0];
+    var isOutpatient = existing && existing.priority === "OUTPATIENT";
+    updateMriOrder(id, { status: "ASKED_TO_SEND", askedToSendAt: nowISO(), tech: state.session.name });
+    showToast(isOutpatient ? "Marked as arrived" : "Marked as asked to send patient");
+  }
+
+  function markDoneMri(id) {
+    updateMriOrder(id, { status: "DONE", doneAt: nowISO(), tech: state.session.name });
+    showToast("Marked as done");
+  }
+
+  function mriCopyFileNumber(id) {
+    var order = state.mriOrders.filter(function (o) { return o.id === id; })[0];
+    if (!order || !order.fileNumber) return;
+    copyTextToClipboard(order.fileNumber).then(function () {
+      showToast("File number copied");
+    }).catch(function () {
+      showToast("Couldn't copy file number");
+    });
+  }
+
+  function mriOrderDisplayDate(order) {
+    if (order.priority === "OUTPATIENT" && order.appointmentDate) return order.appointmentDate;
+    return (order.scheduledAt || order.createdAt || "").slice(0, 10);
+  }
+
+  function getMriFiltered() {
+    var list = state.mriOrders.filter(function (o) { return !o.deletedAt; });
+    if (state.mriFilterPriority !== "ALL") list = list.filter(function (o) { return o.priority === state.mriFilterPriority; });
+    list = list.filter(function (o) { return o.status !== "DONE"; });
+    if (state.mriFilterStatus !== "ACTIVE" && state.mriFilterStatus !== "ALL") {
+      list = list.filter(function (o) { return o.status === state.mriFilterStatus; });
+    }
+    var isSearching = state.mriSearch.trim().length > 0;
+    if (!isSearching && state.mriViewDate) {
+      list = list.filter(function (o) { return mriOrderDisplayDate(o) === state.mriViewDate; });
+    }
+    if (isSearching) {
+      var q = state.mriSearch.trim().toLowerCase();
+      list = list.filter(function (o) {
+        return (o.fileNumber || "").toLowerCase().indexOf(q) !== -1 ||
+          (o.patientName || "").toLowerCase().indexOf(q) !== -1 ||
+          (o.protocol || "").toLowerCase().indexOf(q) !== -1 ||
+          mriProtocolLabel(o.protocol).toLowerCase().indexOf(q) !== -1 ||
+          (o.referringDept || "").toLowerCase().indexOf(q) !== -1 ||
+          (o.referringDept ? departmentLabel(o.referringDept) : "").toLowerCase().indexOf(q) !== -1 ||
+          (o.tech || "").toLowerCase().indexOf(q) !== -1;
+      });
+    }
+    list.sort(function (a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
+    return list;
+  }
+
+  function renderMriCounts() {
+    var active = state.mriOrders.filter(function (o) {
+      return o.status !== "DONE" && !o.deletedAt && mriOrderDisplayDate(o) === state.mriViewDate;
+    });
+    var counts = {
+      INPATIENT: active.filter(function (o) { return o.priority === "INPATIENT"; }).length,
+      OUTPATIENT: active.filter(function (o) { return o.priority === "OUTPATIENT"; }).length,
+      awaitingSend: active.filter(function (o) { return o.status === "ASKED_TO_SEND"; }).length
+    };
+    mriCountPills.innerHTML =
+      pillHtml("Inpatient", counts.INPATIENT, PRIORITY.INPATIENT.color, PRIORITY.INPATIENT.bg) +
+      pillHtml("Outpatient", counts.OUTPATIENT, PRIORITY.OUTPATIENT.color, PRIORITY.OUTPATIENT.bg) +
+      pillHtml("Awaiting send", counts.awaitingSend, STATUS.ASKED_TO_SEND.color, STATUS.ASKED_TO_SEND.bg);
+  }
+
+  function mriTimelineHtml(order) {
+    var askedToSendLabel = order.priority === "OUTPATIENT" ? "Arrived" : "Asked to send patient";
+    var steps = [
+      { key: "scheduledAt", label: "Scheduled", who: order.tech },
+      { key: "askedToSendAt", label: askedToSendLabel, who: order.tech },
+      { key: "doneAt", label: "Done", who: order.tech }
+    ];
+    return '<div class="timeline">' + steps.map(function (s) {
+      var ts = order[s.key];
+      var doneClass = ts ? "done" : "pending";
+      var detail = ts ? (fmtTime(ts) + (s.who ? " · " + escapeHtml(s.who) : "")) : "Not yet";
+      return '<div class="timeline-step ' + doneClass + '">' +
+        '<div class="timeline-dot"></div>' +
+        '<div><div class="timeline-label">' + s.label + '</div>' +
+        '<div class="timeline-detail">' + detail + '</div></div></div>';
+    }).join("") + '</div>';
+  }
+
+  function mriRowHtml(order) {
+    if (!state.session) return "";
+    var prio = PRIORITY[order.priority];
+    var stat = STATUS[order.status];
+    var wait = minutesAgo(order.createdAt);
+    var wColor = waitColor(wait, order.priority);
+    var isOutpatientScheduled = order.priority === "OUTPATIENT" && order.appointmentDate;
+    var expanded = state.mriExpandedId === order.id;
+    var role = state.session.role;
+
+    var metaHtml = isOutpatientScheduled
+      ? "Appointment " + escapeHtml(order.appointmentDate)
+      : "Ordered " + fmtTime(order.createdAt) + ' · <span style="color:' + wColor + ';font-weight:600">' + wait + "m ago</span>";
+
+    var notesHtml = order.notes
+      ? '<div class="notes-block"><span class="notes-label">Clinical notes:</span> ' + escapeHtml(order.notes) + '</div>'
+      : "";
+
+    var actionHtml = "";
+    if (role === "TECH") {
+      if (order.status === "SCHEDULED") {
+        var actionLabel = order.priority === "OUTPATIENT" ? "Arrived" : "Ask to send patient";
+        actionHtml = '<div class="action-row"><button type="button" class="btn-stage" data-action="mri-ask-send" data-id="' + order.id + '">' + actionLabel + '</button></div>';
+      } else if (order.status === "ASKED_TO_SEND") {
+        actionHtml = '<div class="action-row"><button type="button" class="btn-stage green" data-action="mri-mark-done" data-id="' + order.id + '">Mark done</button></div>';
+      }
+    }
+
+    var editDeleteHtml = "";
+    if (role === "TECH") {
+      editDeleteHtml = '<div class="row-actions">' +
+        '<button type="button" class="btn-small" data-action="mri-edit" data-id="' + order.id + '">Edit order</button>' +
+        '<button type="button" class="btn-small danger" data-action="mri-delete" data-id="' + order.id + '">Remove</button>' +
+        '</div>';
+    } else if (role === "RADIOLOGIST") {
+      editDeleteHtml = '<div class="row-actions">' +
+        '<button type="button" class="btn-small" data-action="mri-edit" data-id="' + order.id + '">Edit order</button>' +
+        '</div>';
+    }
+
+    var isProtocoled = order.needsProtocoling && !!order.protocolText;
+    var isPendingProtocol = order.needsProtocoling && !order.protocolText;
+    var needsProtocolingToday = isPendingProtocol && order.appointmentDate === todayISODate();
+
+    var protocolingBadgeHtml = "";
+    if (isProtocoled) {
+      protocolingBadgeHtml = '<span class="protocoling-badge protocoled" title="Protocol submitted">✓ Protocoled</span>';
+    } else if (isPendingProtocol) {
+      protocolingBadgeHtml = '<span class="protocoling-badge" title="Flagged for protocoling review">🏷 Protocoling</span>';
+    }
+
+    var protocolingBannerHtml = (needsProtocolingToday && role === "RADIOLOGIST")
+      ? '<div class="protocoling-banner">🏷 Needs protocoling — appointment is today, please review before the scan.</div>'
+      : "";
+
+    if (role === "RADIOLOGIST" && isPendingProtocol) {
+      actionHtml += '<div class="action-row"><button type="button" class="btn-stage outline" data-action="mri-write-protocol" data-id="' + order.id + '">📝 Write protocol</button></div>';
+    }
+
+    var protocolTextHtml = order.protocolText
+      ? '<div class="notes-block"><span class="notes-label">Protocol' + (order.protocoledBy ? " — " + escapeHtml(order.protocoledBy) : "") + ':</span> ' + escapeHtml(order.protocolText) + '</div>'
+      : "";
+
+    return (
+      '<div class="order-row' + (expanded ? ' expanded' : '') + '" data-id="' + order.id + '">' +
+        '<div class="row-main" data-action="mri-toggle" data-id="' + order.id + '">' +
+          '<div class="cell cell-priority"><span class="badge" style="color:' + prio.color + ';background:' + prio.bg + '">' + prio.label + '</span></div>' +
+          '<div class="cell cell-file" data-label="File #">' +
+            '<div class="cell-file-inner">' +
+              '<span class="cell-value" style="font-weight:600;font-family:var(--mono)">' + escapeHtml(order.fileNumber) + '</span>' +
+              '<button type="button" class="copy-file-btn" data-action="mri-copy-file-number" data-id="' + order.id + '" title="Copy file number">📋</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="cell cell-protocol">' +
+            '<div class="protocol-text-row">' +
+              '<span class="protocol-text">' + escapeHtml(mriProtocolLabel(order.protocol)) + '</span>' +
+              protocolingBadgeHtml +
+            '</div>' +
+            (order.patientName ? '<div class="patient-name-text">' + escapeHtml(order.patientName) + '</div>' : '') +
+            '<div class="meta-text">' + metaHtml + '</div>' +
+          '</div>' +
+          '<div class="cell cell-dept" data-label="Referring"><span class="cell-value" style="color:#3A3F4B">' + escapeHtml(order.referringDept ? departmentLabel(order.referringDept) : "—") + '</span></div>' +
+          '<div class="cell cell-status" data-label="Status"><span class="badge" style="color:' + stat.color + ';background:' + stat.bg + '">' + statusLabelFor(order.status, order.priority) + '</span></div>' +
+          '<div class="cell cell-tech" data-label="Tech"><span class="cell-value" style="color:' + (order.tech ? "#1A1D22" : "#A7ABB3") + '">' + escapeHtml(order.tech || "—") + '</span></div>' +
+          '<div class="cell cell-rad" data-label="Radiologist"><span class="cell-value" style="color:' + (order.radiologist ? "#1A1D22" : "#A7ABB3") + '">' + escapeHtml(order.radiologist || "—") + '</span></div>' +
+          '<div class="cell cell-chevron"><span class="chevron">' + (expanded ? "▲" : "▼") + '</span></div>' +
+        '</div>' +
+        protocolingBannerHtml +
+        '<div class="expand-panel">' +
+          protocolTextHtml +
+          notesHtml +
+          mriTimelineHtml(order) +
+          actionHtml +
+          editDeleteHtml +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  // Builds the fixed 10-minute time-slot table for MRI outpatient orders — same pattern as
+  // CT's timeSlotGridHtml().
+  function mriTimeSlotGridHtml(outpatientOrders) {
+    var WORK_START = MRI_SETTINGS.workStart || DEFAULT_WORK_START;
+    var WORK_END = MRI_SETTINGS.workEnd || DEFAULT_WORK_END;
+
+    var bySlot = {};
+    outpatientOrders.forEach(function (o) {
+      var slot = o.appointmentTime || "—";
+      if (!bySlot[slot]) bySlot[slot] = [];
+      bySlot[slot].push(o);
+    });
+
+    function sortedSlots(keys) {
+      return keys.sort(function (a, b) {
+        if (a === "—") return 1;
+        if (b === "—") return -1;
+        return a < b ? -1 : a > b ? 1 : 0;
+      });
+    }
+    function slotRow(slot) {
+      var slotLabel = slot === "—" ? "No time set" : fmtTimeLabel(slot);
+      return '<div class="slot-group">' +
+        '<div class="slot-time">' + slotLabel + '</div>' +
+        '<div class="slot-orders">' + bySlot[slot].map(mriRowHtml).join("") + '</div>' +
+      '</div>';
+    }
+
+    var workSlots = sortedSlots(Object.keys(bySlot).filter(function (s) {
+      return s === "—" || (s >= WORK_START && s <= WORK_END);
+    }));
+    var oncallSlots = sortedSlots(Object.keys(bySlot).filter(function (s) {
+      return s !== "—" && (s < WORK_START || s > WORK_END);
+    }));
+
+    var workHtml = workSlots.length
+      ? workSlots.map(slotRow).join("")
+      : '<div class="slot-empty">No appointments during working hours</div>';
+    var oncallHtml = oncallSlots.length
+      ? '<div class="oncall-section">' +
+          '<div class="oncall-head">🌙 On-call hours (' + oncallSlots.length + ' slot' + (oncallSlots.length !== 1 ? 's' : '') + ')</div>' +
+          '<div class="oncall-body">' + oncallSlots.map(slotRow).join("") + '</div>' +
+        '</div>'
+      : "";
+    return '<div class="time-slot-section">' + workHtml + oncallHtml + '</div>';
+  }
+
+  function updateMriDateLoadSummary() {
+    if (state.mriFormPriority !== "OUTPATIENT" || !mriAppointmentDateInput.value) {
+      mriDateLoadSummary.classList.add("hidden");
+      return;
+    }
+    var date = mriAppointmentDateInput.value;
+    var excludeId = state.mriEditingId;
+    var sameDay = state.mriOrders.filter(function (o) {
+      return o.priority === "OUTPATIENT" && o.appointmentDate === date && o.id !== excludeId && !o.deletedAt;
+    });
+
+    var contrastLimit = MRI_SETTINGS.dailyContrastLimit;
+    var contrastCount = sameDay.filter(function (o) { return o.contrastEnhanced; }).length;
+    var contrastLineHtml = (contrastLimit != null)
+      ? '<div class="total" style="margin-top:6px;">Contrast-enhanced: ' + contrastCount + ' of ' + contrastLimit + ' booked today' + (contrastCount >= contrastLimit ? " — limit reached" : "") + '</div>'
+      : "";
+
+    if (!sameDay.length) {
+      mriDateLoadSummary.classList.remove("hidden");
+      mriDateLoadSummary.innerHTML = '<div class="date-load-summary"><div class="total">No outpatient appointments booked yet on this date.</div>' + contrastLineHtml + '</div>';
+      return;
+    }
+
+    var bySlot = {};
+    sameDay.forEach(function (o) {
+      var slot = o.appointmentTime || "—";
+      bySlot[slot] = (bySlot[slot] || 0) + 1;
+    });
+    var slots = Object.keys(bySlot).sort(function (a, b) {
+      if (a === "—") return 1;
+      if (b === "—") return -1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
+    var breakdown = slots.map(function (slot) {
+      var label = slot === "—" ? "No time set" : fmtTimeLabel(slot);
+      return '<div><span class="slot">' + escapeHtml(label) + '</span> — ' + bySlot[slot] + (bySlot[slot] === 1 ? " patient" : " patients") + '</div>';
+    }).join("");
+
+    mriDateLoadSummary.classList.remove("hidden");
+    mriDateLoadSummary.innerHTML =
+      '<div class="date-load-summary">' +
+        '<div class="total">' + sameDay.length + (sameDay.length === 1 ? " outpatient appointment" : " outpatient appointments") + ' already booked on this date</div>' +
+        '<div class="breakdown">' + breakdown + '</div>' +
+        contrastLineHtml +
+      '</div>';
+  }
+
+  function renderMriList() {
+    var filtered = getMriFiltered();
+    var outpatientOrders = filtered.filter(function (o) { return o.priority === "OUTPATIENT"; });
+    var inpatientOrders = filtered.filter(function (o) { return o.priority === "INPATIENT"; });
+    var pf = state.mriFilterPriority;
+
+    mriOutpatientColumn.classList.toggle("hidden", pf !== "ALL" && pf !== "OUTPATIENT");
+    mriInpatientColumn.classList.toggle("hidden", pf !== "ALL" && pf !== "INPATIENT");
+
+    mriOutpatientEmpty.classList.toggle("hidden", outpatientOrders.length !== 0);
+    mriOutpatientList.innerHTML = outpatientOrders.length ? mriTimeSlotGridHtml(outpatientOrders) : "";
+
+    mriInpatientEmpty.classList.toggle("hidden", inpatientOrders.length !== 0);
+    mriInpatientList.innerHTML = inpatientOrders.map(mriRowHtml).join("");
+
+    renderMriDoneSection();
+  }
+
+  function renderMriDoneSection() {
+    var pf = state.mriFilterPriority;
+    var doneOrders = state.mriOrders.filter(function (o) {
+      return o.status === "DONE" && !o.deletedAt && mriOrderDisplayDate(o) === state.mriViewDate &&
+        (pf === "ALL" || o.priority === pf);
+    });
+    mriDoneSection.classList.toggle("hidden", doneOrders.length === 0);
+    mriDoneSectionTitle.textContent = "✓ Done today (" + doneOrders.length + ")";
+    mriDoneList.innerHTML = doneOrders.map(mriRowHtml).join("");
+  }
+
+  function renderMriDayNav() {
+    mriDayNavLabel.textContent = fmtDayLabel(state.mriViewDate);
+    mriDayDatePicker.value = state.mriViewDate;
+    mriTodayBtn.classList.toggle("hidden", state.mriViewDate === todayISODate());
+  }
+
+  function renderMri() {
+    renderMriCounts();
+    renderMriList();
+    renderMriDayNav();
+  }
+
+  function handleMriOrderListClick(e) {
+    var actionEl = e.target.closest("[data-action]");
+    if (!actionEl) return;
+    var action = actionEl.getAttribute("data-action");
+    var id = actionEl.getAttribute("data-id");
+
+    if (action === "mri-toggle") {
+      state.mriExpandedId = state.mriExpandedId === id ? null : id;
+      renderMri();
+    } else if (action === "mri-copy-file-number") {
+      mriCopyFileNumber(id);
+    } else if (action === "mri-ask-send") {
+      askToSendMri(id);
+    } else if (action === "mri-mark-done") {
+      markDoneMri(id);
+    } else if (action === "mri-write-protocol") {
+      var orderToProtocol = state.mriOrders.filter(function (o) { return o.id === id; })[0];
+      if (orderToProtocol) openMriProtocolModal(orderToProtocol);
+    } else if (action === "mri-edit") {
+      var order = state.mriOrders.filter(function (o) { return o.id === id; })[0];
+      if (order) openMriForm(order);
+    } else if (action === "mri-delete") {
+      var target = state.mriOrders.filter(function (o) { return o.id === id; })[0];
+      if (!target) return;
+      var isSoftDelete = target.priority === "OUTPATIENT";
+      var recoveryNote = MRI_SETTINGS.deletedOrdersAutoPurge === false
+        ? "the order will be kept in the admin's deleted view until manually removed"
+        : "the order will be kept in the admin's deleted view for " + mriDeletedOrdersRetentionDays() + (mriDeletedOrdersRetentionDays() === 1 ? " day" : " days") + " in case this was a mistake";
+      var confirmMsg = isSoftDelete
+        ? "Remove order for file #" + target.fileNumber + "? " + recoveryNote + "."
+        : "Remove order for file #" + target.fileNumber + "? This cannot be undone.";
+      if (window.confirm(confirmMsg)) {
+        deleteMriOrder(id);
+      }
+    }
+  }
+  mriOutpatientList.addEventListener("click", handleMriOrderListClick);
+  mriInpatientList.addEventListener("click", handleMriOrderListClick);
+  mriDoneList.addEventListener("click", handleMriOrderListClick);
+
+  var mriDoneListExpanded = false;
+  mriDoneToggleBtn.addEventListener("click", function () {
+    mriDoneListExpanded = !mriDoneListExpanded;
+    mriDoneList.classList.toggle("hidden", !mriDoneListExpanded);
+    mriDoneToggleChevron.textContent = mriDoneListExpanded ? "▲" : "▼";
+  });
+
+  // ---- MRI protocol submission modal ----
+
+  var mriProtocolModalOrderId = null;
+
+  function openMriProtocolModal(order) {
+    mriProtocolModalOrderId = order.id;
+    mriProtocolFormError.classList.add("hidden");
+    mriProtocolTextInput.value = order.protocolText || "";
+    mriProtocolModalContext.textContent = "File #" + order.fileNumber + (order.patientName ? " — " + order.patientName : "") + " · " + mriProtocolLabel(order.protocol) + (order.appointmentDate ? " · " + order.appointmentDate : "");
+    mriProtocolModalOverlay.classList.remove("hidden");
+    mriProtocolTextInput.focus();
+  }
+  function closeMriProtocolModal() {
+    mriProtocolModalOverlay.classList.add("hidden");
+    mriProtocolModalOrderId = null;
+  }
+
+  mriProtocolModalClose.addEventListener("click", closeMriProtocolModal);
+  mriProtocolCancelBtn.addEventListener("click", closeMriProtocolModal);
+  mriProtocolModalOverlay.addEventListener("click", function (e) { if (e.target === mriProtocolModalOverlay) closeMriProtocolModal(); });
+
+  mriProtocolForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var text = mriProtocolTextInput.value.trim();
+    if (!text) {
+      mriProtocolFormError.textContent = "Enter the protocol before submitting.";
+      mriProtocolFormError.classList.remove("hidden");
+      return;
+    }
+    if (!mriProtocolModalOrderId) return;
+    updateMriOrder(mriProtocolModalOrderId, {
+      protocolText: text,
+      protocoledBy: state.session.name,
+      protocoledAt: nowISO()
+    }).then(function () {
+      showToast("Protocol submitted");
+      closeMriProtocolModal();
+    });
+  });
+
+  mriLogoutBtn.addEventListener("click", logout);
+  mriNewOrderBtn.addEventListener("click", function () { openMriForm(null); });
+  mriModalClose.addEventListener("click", closeMriForm);
+  mriCancelBtn.addEventListener("click", closeMriForm);
+  mriModalOverlay.addEventListener("click", function (e) { if (e.target === mriModalOverlay) closeMriForm(); });
+  mriOrderForm.addEventListener("submit", submitMriForm);
+  mriProtocolSelect.addEventListener("change", handleMriProtocolChange);
+  mriCustomProtocolInput.addEventListener("input", handleMriCustomProtocolTextInput);
+
+  function handleMriAppointmentDateChange() {
+    populateMriAppointmentTimeOptions(mriAppointmentTimeInput.value);
+    updateMriDateLoadSummary();
+  }
+  mriAppointmentDateInput.addEventListener("change", handleMriAppointmentDateChange);
+  mriAppointmentDateInput.addEventListener("input", handleMriAppointmentDateChange);
+
+  Array.prototype.forEach.call(mriPriorityToggle.children, function (btn) {
+    btn.addEventListener("click", function () { setMriFormPriority(btn.getAttribute("data-priority")); });
+  });
+  Array.prototype.forEach.call(mriContrastToggle.children, function (btn) {
+    btn.addEventListener("click", function () { setMriFormContrast(btn.getAttribute("data-contrast") === "YES"); });
+  });
+
+  mriSearchInput.addEventListener("input", function () { state.mriSearch = mriSearchInput.value; renderMriList(); });
+  mriStatusSelect.addEventListener("change", function () { state.mriFilterStatus = mriStatusSelect.value; renderMriList(); });
+
+  mriPrevDayBtn.addEventListener("click", function () {
+    state.mriViewDate = shiftISODate(state.mriViewDate, -1);
+    renderMri();
+  });
+  mriNextDayBtn.addEventListener("click", function () {
+    state.mriViewDate = shiftISODate(state.mriViewDate, 1);
+    renderMri();
+  });
+  mriTodayBtn.addEventListener("click", function () {
+    state.mriViewDate = todayISODate();
+    renderMri();
+  });
+  mriDayDatePicker.addEventListener("change", function () {
+    if (mriDayDatePicker.value) {
+      state.mriViewDate = mriDayDatePicker.value;
+      renderMri();
+    }
+  });
+  Array.prototype.forEach.call(mriPriorityFilterGroup.children, function (btn) {
+    btn.addEventListener("click", function () {
+      state.mriFilterPriority = btn.getAttribute("data-priority");
+      Array.prototype.forEach.call(mriPriorityFilterGroup.children, function (b) { b.classList.toggle("active", b === btn); });
+      renderMriList();
+    });
+  });
+
+  // ---- Switching between CT and MRI worklists (Both-access accounts only) ----
+  switchToMriBtn.addEventListener("click", function () {
+    app.classList.add("hidden");
+    showMriShell();
+    syncMriOrdersFromServer().then(function () { renderMri(); });
+  });
+  mriSwitchToCtBtn.addEventListener("click", function () {
+    mriApp.classList.add("hidden");
+    showAppShell();
+    syncOrdersFromServer().then(function () { render(); });
   });
 
   // ---------- Top-level event wiring ----------
@@ -4697,6 +6790,19 @@
       });
       return;
     }
+    if (state.session.role === "SUPERVISOR") {
+      refreshSupervisorDashboard();
+      return;
+    }
+    // Radiologist/Tech: refresh whichever worklist is actually on screen right now — for a
+    // "Both" account that could be either one, depending which they last switched to.
+    if (!mriApp.classList.contains("hidden")) {
+      if (!mriModalOverlay.classList.contains("hidden")) return; // don't yank data out from under an open form
+      syncMriOrdersFromServer().then(function () {
+        renderMri();
+      });
+      return;
+    }
     if (!modalOverlay.classList.contains("hidden")) return; // don't yank data out from under an open form
     syncOrdersFromServer().then(function () {
       render();
@@ -4711,7 +6817,7 @@
   // settings never appear stale after logging out and back in (or reloading) — see
   // showAdminShell() below.
   function loadSharedDataFromServer() {
-    return Promise.all([fetchRadiologists(), fetchTechs(), fetchInstructions(), fetchLogos(), fetchSchedulingSettings(), fetchXrayTechs(), fetchReceptionists()]).then(function (results) {
+    return Promise.all([fetchRadiologists(), fetchTechs(), fetchInstructions(), fetchLogos(), fetchSchedulingSettings(), fetchXrayTechs(), fetchReceptionists(), fetchSupervisors(), fetchMriSettings()]).then(function (results) {
       RADIOLOGISTS = Array.isArray(results[0]) ? results[0] : [];
       TECHS = Array.isArray(results[1]) ? results[1] : [];
       var instrResult = results[2];
@@ -4727,6 +6833,7 @@
       var settings = results[4];
       XRAY_TECHS = Array.isArray(results[5]) ? results[5] : [];
       RECEPTIONISTS = Array.isArray(results[6]) ? results[6] : [];
+      SUPERVISORS = Array.isArray(results[7]) ? results[7] : [];
       if (settings && typeof settings === "object") {
         SCHEDULING_SETTINGS = {
           bookingWindowDays: settings.bookingWindowDays || 30,
@@ -4758,6 +6865,22 @@
           queueDoneRetentionDays: (settings.queueDoneRetentionDays > 0) ? settings.queueDoneRetentionDays : 30
         };
       }
+      var mriSettings = results[8];
+      if (mriSettings && typeof mriSettings === "object") {
+        MRI_SETTINGS = {
+          bookingWindowDays: mriSettings.bookingWindowDays || 30,
+          dailyContrastLimit: (mriSettings.dailyContrastLimit != null) ? mriSettings.dailyContrastLimit : null,
+          workStart: mriSettings.workStart || DEFAULT_WORK_START,
+          workEnd: mriSettings.workEnd || DEFAULT_WORK_END,
+          preventDoubleBooking: mriSettings.preventDoubleBooking !== false,
+          enabledProtocols: Array.isArray(mriSettings.enabledProtocols) ? mriSettings.enabledProtocols : null,
+          protocolLabels: (mriSettings.protocolLabels && typeof mriSettings.protocolLabels === "object") ? mriSettings.protocolLabels : null,
+          customProtocols: Array.isArray(mriSettings.customProtocols) ? mriSettings.customProtocols : null,
+          deletedOrdersAutoPurge: mriSettings.deletedOrdersAutoPurge !== false,
+          deletedOrdersRetentionDays: (mriSettings.deletedOrdersRetentionDays > 0) ? mriSettings.deletedOrdersRetentionDays : 7,
+          doneOrdersRetentionDays: (mriSettings.doneOrdersRetentionDays > 0) ? mriSettings.doneOrdersRetentionDays : 180
+        };
+      }
       if (typeof logos === "string") {
         // Backward compatibility: older data saved before this feature stored a single logo
         // as a plain string. Treat it as the left logo so nothing existing breaks.
@@ -4775,6 +6898,7 @@
     populateDepartments();
     state.viewDate = todayISODate();
     state.queueViewDate = todayISODate();
+    state.mriViewDate = todayISODate();
 
     // Load shared staff lists, instruction templates, and the logos before anything else, since
     // the login screen, worklist, and printed sheets all depend on them.
@@ -4792,6 +6916,18 @@
           showQueueShell();
           syncQueueFromServer().then(function () {
             renderQueue();
+          });
+          return;
+        }
+        if (state.session.role === "SUPERVISOR") {
+          showSupervisorShell();
+          refreshSupervisorDashboard();
+          return;
+        }
+        if (state.session.modalityAccess === "MRI") {
+          showMriShell();
+          syncMriOrdersFromServer().then(function () {
+            renderMri();
           });
           return;
         }
